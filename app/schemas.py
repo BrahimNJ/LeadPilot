@@ -1,10 +1,11 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
 from app.domain.pipeline import Stage
 
+ActivityKind = Literal["note", "call", "email", "meeting"]
 CompanySize = Literal["1-10", "11-50", "51-200", "201-1000", "1000+"]
 
 
@@ -43,6 +44,7 @@ class ContactOut(ContactIn):
 
     id: int
     created_at: datetime
+    last_contacted_at: datetime | None
 
 
 class DealIn(BaseModel):
@@ -69,3 +71,23 @@ class PipelineStage(BaseModel):
     stage: Stage
     deals: int
     amount: int
+
+
+class ActivityIn(BaseModel):
+    kind: ActivityKind
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=10_000)
+    occurred_at: AwareDatetime | None = Field(
+        default=None, description="When it happened; defaults to now"
+    )
+
+
+class ActivityOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contact_id: int
+    kind: ActivityKind
+    subject: str
+    body: str
+    occurred_at: datetime

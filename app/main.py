@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app import __version__, models  # noqa: F401  (registers the tables)
 from app.db import Base, engine
-from app.routers import companies, contacts, deals, health
+from app.routers import activities, companies, contacts, deals, health
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(companies.router)
     app.include_router(contacts.router)
     app.include_router(deals.router)
+    app.include_router(activities.router)
     return app
 
 
