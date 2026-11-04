@@ -17,3 +17,21 @@ class ScoreResult(BaseModel):
 
     lead: LeadScore
     model: str
+
+
+class Insights(BaseModel):
+    """A ten-second read of where the relationship stands."""
+
+    summary: str = Field(description="Three sentences at most")
+    open_questions: list[str] = Field(description="What we still do not know and need to ask")
+    next_action: str = Field(description="One concrete next step for the salesperson")
+
+
+Language = Literal["fr", "en"]
+
+
+class FollowUpDraft(BaseModel):
+    """An email the salesperson reviews and sends themselves."""
+
+    subject: str
+    body: str

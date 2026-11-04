@@ -1,7 +1,7 @@
 from typing import Protocol
 
 from app.ai.context import ContactContext
-from app.ai.schemas import ScoreResult
+from app.ai.schemas import FollowUpDraft, Insights, Language, ScoreResult
 
 
 class CopilotError(Exception):
@@ -24,3 +24,9 @@ class Copilot(Protocol):
     """
 
     def score_lead(self, ctx: ContactContext) -> ScoreResult: ...
+
+    def insights(self, ctx: ContactContext) -> Insights: ...
+
+    def draft_follow_up(
+        self, ctx: ContactContext, language: Language, goal: str | None
+    ) -> FollowUpDraft: ...

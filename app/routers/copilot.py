@@ -3,13 +3,14 @@ from typing import Annotated
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.ai.claude import ClaudeCopilot
 from app.ai.context import ContactContext
 from app.ai.copilot import Copilot, CopilotError, CopilotRefused
 from app.ai.offline import OfflineCopilot
-from app.ai.schemas import ScoreResult
+from app.ai.schemas import FollowUpDraft, Insights, Language, ScoreResult
 from app.config import get_settings
 from app.models import Activity, Contact, Deal, utcnow
 from app.routers.deps import SessionDep, get_or_404
@@ -62,3 +63,31 @@ def score_contact(contact_id: int, session: SessionDep, copilot: CopilotDep) -> 
     contact.scored_at = ctx.now
     session.commit()
     return result
+
+
+@router.post("/insights")
+def contact_insights(contact_id: int, session: SessionDep, copilot: CopilotDep) -> Insights:
+    ctx = load_context(session, contact_id)
+    try:
+        return copilot.insights(ctx)
+    except CopilotError as exc:
+        raise copilot_http_error(exc) from exc
+
+
+class FollowUpRequest(BaseModel):
+    language: Language = "fr"
+    goal: str | None = Field(
+        default=None, max_length=300, examples=["Get a date for the security review"]
+    )
+
+
+@router.post("/follow-up")
+def draft_follow_up(
+    contact_id: int, payload: FollowUpRequest, session: SessionDep, copilot: CopilotDep
+) -> FollowUpDraft:
+    """Return a draft. Nothing is sent or stored: the salesperson stays in control."""
+    ctx = load_context(session, contact_id)
+    try:
+        return copilot.draft_follow_up(ctx, payload.language, payload.goal)
+    except CopilotError as exc:
+        raise copilot_http_error(exc) from exc
