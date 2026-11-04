@@ -10,7 +10,7 @@ from app.routers import activities, companies, contacts, copilot, deals, health
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    # Good enough while the schema is young; Alembic migrations come before production data.
+    # Tables are created at startup until Alembic migrations are introduced.
     Base.metadata.create_all(engine)
     yield
 
@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="LeadPilot API",
         version=__version__,
-        description="A small CRM with an AI copilot for lead scoring and follow-ups.",
+        description="A CRM with an AI copilot for lead scoring and follow-ups.",
         lifespan=lifespan,
     )
     app.include_router(health.router)
