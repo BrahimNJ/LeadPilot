@@ -17,7 +17,7 @@ from app.routers.copilot import get_copilot
 def contact(client):
     return client.post(
         "/contacts",
-        json={"first_name": "Ines", "last_name": "Moreau", "email": "ines@helio.fr"},
+        json={"first_name": "Ines", "last_name": "Moreau", "email": "ines@example.com"},
     ).json()
 
 
@@ -92,7 +92,7 @@ def message(content: str | None, stop_reason: str = "end_turn") -> dict:
 
 
 def context() -> ContactContext:
-    contact = Contact(id=1, first_name="Ines", last_name="Moreau", email="ines@helio.fr")
+    contact = Contact(id=1, first_name="Ines", last_name="Moreau", email="ines@example.com")
     return ContactContext(contact=contact, deals=[], activities=[], now=utcnow())
 
 

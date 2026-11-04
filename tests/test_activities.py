@@ -4,7 +4,7 @@ import pytest
 @pytest.fixture
 def contact(client):
     response = client.post(
-        "/contacts", json={"first_name": "Hugo", "last_name": "Leroy", "email": "hugo@nova.io"}
+        "/contacts", json={"first_name": "Hugo", "last_name": "Leroy", "email": "hugo@example.com"}
     )
     return response.json()
 
