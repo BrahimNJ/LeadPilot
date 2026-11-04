@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local data & secrets
+*.db
+.env
+.env.*
+!.env.example
+
+# Editors
+.vscode/
+.idea/
