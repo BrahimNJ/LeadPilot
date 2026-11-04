@@ -1,7 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+from app.domain.pipeline import Stage
 
 CompanySize = Literal["1-10", "11-50", "51-200", "201-1000", "1000+"]
 
@@ -41,3 +43,29 @@ class ContactOut(ContactIn):
 
     id: int
     created_at: datetime
+
+
+class DealIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    amount: int = Field(ge=0, description="Estimated value in euros")
+    contact_id: int
+    expected_close: date | None = None
+
+
+class DealOut(DealIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    stage: Stage
+    created_at: datetime
+    closed_at: datetime | None
+
+
+class StageChange(BaseModel):
+    stage: Stage
+
+
+class PipelineStage(BaseModel):
+    stage: Stage
+    deals: int
+    amount: int
