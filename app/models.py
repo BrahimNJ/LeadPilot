@@ -1,9 +1,10 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.domain.pipeline import Stage
 
 
 def utcnow() -> datetime:
@@ -36,3 +37,19 @@ class Contact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     company: Mapped[Company | None] = relationship(back_populates="contacts")
+
+
+class Deal(Base):
+    __tablename__ = "deals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column(String(200))
+    # Whole euros: deal sizes are estimates, cents would be false precision.
+    amount: Mapped[int] = mapped_column(Integer)
+    stage: Mapped[str] = mapped_column(String(20), default=Stage.LEAD, index=True)
+    expected_close: Mapped[date | None] = mapped_column(Date)
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    contact: Mapped[Contact] = relationship()
