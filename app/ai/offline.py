@@ -33,7 +33,8 @@ class OfflineCopilot:
             days = (ctx.now - last).days
             if days <= 14:
                 score += 20
-                reasons.append(f"Contacted {days} days ago")
+                when = "today" if days == 0 else "yesterday" if days == 1 else f"{days} days ago"
+                reasons.append(f"Contacted {when}")
             elif days > 45:
                 score -= 10
                 risks.append(f"No contact for {days} days")
