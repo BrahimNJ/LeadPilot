@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app import __version__
+from app import __version__, models  # noqa: F401  (registers the tables)
 from app.db import Base, engine
-from app.routers import health
+from app.routers import companies, contacts, health
 
 
 @asynccontextmanager
@@ -23,6 +23,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(health.router)
+    app.include_router(companies.router)
+    app.include_router(contacts.router)
     return app
 
 
