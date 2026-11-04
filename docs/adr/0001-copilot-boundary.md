@@ -35,5 +35,5 @@ and draft follow-ups. We want:
 - Adding a provider means writing one class; no router changes.
 - The SDK path is still tested: `tests/test_copilot.py` runs the real SDK against a fake
   HTTP transport and checks the request we send as well as how we read the answer.
-- The offline rules are deliberately simple. They are a fallback and a test double,
-  not a second scoring model to maintain.
+- The offline rules are kept transparent on purpose: they act as a fallback and a test
+  double, so there is a single scoring model to maintain.
