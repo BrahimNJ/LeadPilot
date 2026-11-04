@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -10,6 +11,11 @@ class Settings(BaseSettings):
 
     app_name: str = "LeadPilot"
     database_url: str = "sqlite:///./leadpilot.db"
+
+    # Without a key the copilot runs on transparent offline rules.
+    anthropic_api_key: str | None = None
+    llm_model: str = "claude-opus-5-5"
+    llm_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
 
 
 @lru_cache

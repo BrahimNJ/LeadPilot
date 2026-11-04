@@ -45,6 +45,8 @@ class ContactOut(ContactIn):
     id: int
     created_at: datetime
     last_contacted_at: datetime | None
+    score: int | None = None
+    scored_at: datetime | None = None
 
 
 class DealIn(BaseModel):
