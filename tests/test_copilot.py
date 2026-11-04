@@ -134,3 +134,56 @@ def test_claude_unparsable_answer_is_reported_as_unavailable():
 
     with pytest.raises(CopilotUnavailable, match="could not be read"):
         copilot.score_lead(context())
+
+
+# --- insights and follow-up drafts ------------------------------------------------------
+
+
+def test_insights_for_a_new_contact_suggest_a_discovery_call(client, contact):
+    insights = client.post(f"/contacts/{contact['id']}/insights").json()
+
+    assert insights["next_action"] == "Book a discovery call with Ines."
+    assert insights["open_questions"]
+
+
+def test_insights_mention_the_latest_interaction(client, contact):
+    client.post(
+        f"/contacts/{contact['id']}/activities",
+        json={
+            "kind": "meeting",
+            "subject": "Security review",
+            "occurred_at": "2026-11-02T10:00:00Z",
+        },
+    )
+
+    insights = client.post(f"/contacts/{contact['id']}/insights").json()
+
+    assert "2026-11-02: Security review" in insights["summary"]
+
+
+@pytest.mark.parametrize(("language", "greeting"), [("fr", "Bonjour Ines"), ("en", "Hi Ines")])
+def test_follow_up_draft_in_the_requested_language(client, contact, language, greeting):
+    draft = client.post(f"/contacts/{contact['id']}/follow-up", json={"language": language}).json()
+
+    assert draft["body"].startswith(greeting)
+
+
+def test_follow_up_draft_is_not_stored_as_an_activity(client, contact):
+    client.post(f"/contacts/{contact['id']}/follow-up", json={})
+
+    assert client.get(f"/contacts/{contact['id']}/activities").json()["total"] == 0
+
+
+def test_claude_follow_up_prompt_carries_language_and_goal():
+    sent = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        sent.update(json.loads(request.content))
+        return httpx2.Response(200, json=message('{"subject": "Suivi", "body": "Bonjour"}'))
+
+    draft = claude_with(handler).draft_follow_up(context(), "fr", "Fix a date for the demo")
+
+    prompt = sent["messages"][0]["content"]
+    assert draft.subject == "Suivi"
+    assert "in French" in prompt
+    assert "Fix a date for the demo" in prompt
