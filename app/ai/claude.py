@@ -8,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.ai.context import ContactContext, render
 from app.ai.copilot import CopilotRefused, CopilotUnavailable
-from app.ai.schemas import LeadScore, ScoreResult
+from app.ai.schemas import FollowUpDraft, Insights, Language, LeadScore, ScoreResult
 
 log = logging.getLogger(__name__)
 
@@ -33,6 +33,20 @@ Score this contact as a lead from 0 to 100.
 List the facts that support the score as reasons, and what could go wrong as risks."""
 
 
+INSIGHTS_TASK = """\
+Summarise where this relationship stands in three sentences at most, list the questions we
+still need answered to move forward, and give one concrete next action for the salesperson."""
+
+FOLLOW_UP_TASK = """\
+Draft a short follow-up email from the salesperson to this contact, in {language}.
+Refer to the latest interaction, keep it under 120 words and end with one clear question.
+No placeholders like [Name]: use what the record contains, or leave the detail out.
+Do not invent prices, dates or commitments that are not in the record.
+{goal}"""
+
+LANGUAGE_NAMES = {"fr": "French", "en": "English"}
+
+
 class ClaudeCopilot:
     def __init__(
         self,
@@ -47,6 +61,18 @@ class ClaudeCopilot:
     def score_lead(self, ctx: ContactContext) -> ScoreResult:
         lead = self._ask(SCORING_TASK, ctx, LeadScore)
         return ScoreResult(lead=lead, model=self._model)
+
+    def insights(self, ctx: ContactContext) -> Insights:
+        return self._ask(INSIGHTS_TASK, ctx, Insights)
+
+    def draft_follow_up(
+        self, ctx: ContactContext, language: Language, goal: str | None
+    ) -> FollowUpDraft:
+        task = FOLLOW_UP_TASK.format(
+            language=LANGUAGE_NAMES[language],
+            goal=f"The salesperson's goal for this email: {goal}" if goal else "",
+        )
+        return self._ask(task.strip(), ctx, FollowUpDraft)
 
     def _ask[T: BaseModel](self, task: str, ctx: ContactContext, output: type[T]) -> T:
         prompt = f"<crm_record>\n{render(ctx)}\n</crm_record>\n\n{task}"
