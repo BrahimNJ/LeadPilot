@@ -1,12 +1,12 @@
 def make_company(client, **overrides):
-    payload = {"name": "Acme", "domain": "acme.fr", "industry": "Retail", "size": "51-200"}
+    payload = {"name": "Acme", "domain": "acme.example.com", "industry": "Retail", "size": "51-200"}
     response = client.post("/companies", json=payload | overrides)
     assert response.status_code == 201, response.text
     return response.json()
 
 
 def make_contact(client, **overrides):
-    payload = {"first_name": "Camille", "last_name": "Martin", "email": "camille@acme.fr"}
+    payload = {"first_name": "Camille", "last_name": "Martin", "email": "camille@example.com"}
     response = client.post("/contacts", json=payload | overrides)
     assert response.status_code == 201, response.text
     return response.json()
@@ -27,10 +27,10 @@ def test_company_crud(client):
 def test_company_domain_is_unique(client):
     make_company(client)
 
-    response = client.post("/companies", json={"name": "Copycat", "domain": "acme.fr"})
+    response = client.post("/companies", json={"name": "Copycat", "domain": "acme.example.com"})
 
     assert response.status_code == 409
-    assert "acme.fr" in response.json()["detail"]
+    assert "acme.example.com" in response.json()["detail"]
 
 
 def test_contact_linked_to_company(client):
@@ -46,7 +46,7 @@ def test_contact_linked_to_company(client):
 def test_contact_with_unknown_company_is_rejected(client):
     response = client.post(
         "/contacts",
-        json={"first_name": "A", "last_name": "B", "email": "a@b.fr", "company_id": 999},
+        json={"first_name": "A", "last_name": "B", "email": "a@example.org", "company_id": 999},
     )
 
     assert response.status_code == 422
@@ -57,7 +57,7 @@ def test_contact_email_is_unique_and_validated(client):
     make_contact(client)
 
     duplicate = client.post(
-        "/contacts", json={"first_name": "C", "last_name": "M", "email": "camille@acme.fr"}
+        "/contacts", json={"first_name": "C", "last_name": "M", "email": "camille@example.com"}
     )
     invalid = client.post(
         "/contacts", json={"first_name": "C", "last_name": "M", "email": "not-an-email"}
@@ -69,8 +69,8 @@ def test_contact_email_is_unique_and_validated(client):
 
 def test_contact_search_and_pagination(client):
     for i in range(5):
-        make_contact(client, first_name=f"User{i}", last_name="Durand", email=f"u{i}@x.fr")
-    make_contact(client, first_name="Lea", last_name="Petit", email="lea@y.fr")
+        make_contact(client, first_name=f"User{i}", last_name="Durand", email=f"u{i}@example.org")
+    make_contact(client, first_name="Lea", last_name="Petit", email="lea@example.org")
 
     page = client.get("/contacts", params={"q": "durand", "limit": 2, "offset": 2}).json()
 

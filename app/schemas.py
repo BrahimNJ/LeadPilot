@@ -18,7 +18,7 @@ class Page[T](BaseModel):
 
 class CompanyIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    domain: str | None = Field(default=None, max_length=253, examples=["acme.fr"])
+    domain: str | None = Field(default=None, max_length=253, examples=["acme.example.com"])
     industry: str | None = Field(default=None, max_length=100)
     size: CompanySize | None = None
 
