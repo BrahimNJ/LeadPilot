@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
+from typing import Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -36,6 +37,12 @@ class Contact(Base):
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_contacted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Latest copilot score, kept with its explanation and the model that produced it.
+    score: Mapped[int | None] = mapped_column(Integer)
+    score_details: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    score_model: Mapped[str | None] = mapped_column(String(100))
+    scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     company: Mapped[Company | None] = relationship(back_populates="contacts")
     activities: Mapped[list["Activity"]] = relationship(

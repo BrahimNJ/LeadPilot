@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401  (registers the tables)
+from app.ai.offline import OfflineCopilot
 from app.db import Base, get_session
 from app.main import create_app
+from app.routers.copilot import get_copilot
 
 
 @pytest.fixture
@@ -27,5 +29,7 @@ def session() -> Iterator[Session]:
 def client(session: Session) -> Iterator[TestClient]:
     app = create_app()
     app.dependency_overrides[get_session] = lambda: session
+    # Tests never call a real model, whatever is in the local .env.
+    app.dependency_overrides[get_copilot] = OfflineCopilot
     with TestClient(app) as c:
         yield c
