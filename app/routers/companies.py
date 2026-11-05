@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Query, status
 from sqlalchemy import func, or_, select
 
-from app.models import Company
+from app.models import Company, Contact
 from app.routers.deps import PaginationDep, SessionDep, commit_or_409, get_or_404
-from app.schemas import CompanyIn, CompanyOut, Page
+from app.schemas import CompanyIn, CompanyOut, ContactOut, Page
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -49,6 +49,23 @@ def list_companies(
 @router.get("/{company_id}")
 def get_company(company_id: int, session: SessionDep) -> CompanyOut:
     return CompanyOut.model_validate(get_or_404(session, Company, company_id))
+
+
+@router.get("/{company_id}/contacts")
+def company_contacts(company_id: int, session: SessionDep, page: PaginationDep) -> Page[ContactOut]:
+    get_or_404(session, Company, company_id)
+    query = select(Contact).where(Contact.company_id == company_id)
+
+    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = session.scalars(
+        query.order_by(Contact.last_name, Contact.first_name).limit(page.limit).offset(page.offset)
+    )
+    return Page(
+        items=[ContactOut.model_validate(c) for c in rows],
+        total=total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 @router.put("/{company_id}")
