@@ -99,3 +99,14 @@ def test_deleting_a_contact_removes_its_deals_and_activities(client):
 
     assert client.get(f"/deals/{deal['id']}").status_code == 404
     assert client.get("/deals").json()["total"] == 0
+
+
+def test_company_search_matches_name_and_domain(client):
+    make_company(client)
+    make_company(client, name="Brightwave", domain="brightwave.example.org")
+    make_company(client, name="Nordlicht", domain=None)
+
+    assert client.get("/companies", params={"q": "BRIGHT"}).json()["total"] == 1
+    assert client.get("/companies", params={"q": "example.org"}).json()["total"] == 1
+    assert client.get("/companies", params={"q": "example"}).json()["total"] == 2
+    assert client.get("/companies").json()["total"] == 3
