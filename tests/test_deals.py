@@ -105,3 +105,14 @@ def test_update_deal_checks_the_contact(client, contact):
         "/deals/999", json={"title": "x", "amount": 1, "contact_id": contact["id"]}
     )
     assert missing.status_code == 404
+
+
+def test_deleted_deal_leaves_the_pipeline(client, contact):
+    deal = make_deal(client, contact, amount=7000)
+
+    assert client.delete(f"/deals/{deal['id']}").status_code == 204
+
+    assert client.get(f"/deals/{deal['id']}").status_code == 404
+    lead = next(s for s in client.get("/deals/pipeline").json() if s["stage"] == "lead")
+    assert lead == {"stage": "lead", "deals": 0, "amount": 0}
+    assert client.delete(f"/deals/{deal['id']}").status_code == 404
