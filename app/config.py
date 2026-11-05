@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     app_name: str = "LeadPilot"
     database_url: str = "sqlite:///./leadpilot.db"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
     # Without a key the copilot runs on transparent offline rules.
     anthropic_api_key: str | None = None
