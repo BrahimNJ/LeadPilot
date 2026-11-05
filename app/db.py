@@ -11,10 +11,10 @@ class Base(DeclarativeBase):
     pass
 
 
-def build_engine(url: str) -> Engine:
+def build_engine(url: str, **options: Any) -> Engine:
     # SQLite needs this flag because FastAPI may serve a request on another thread.
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+    engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True, **options)
     if url.startswith("sqlite"):
         # SQLite ignores foreign keys unless asked, on every connection: without this,
         # ON DELETE CASCADE / SET NULL silently do nothing.

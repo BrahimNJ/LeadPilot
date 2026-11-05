@@ -2,13 +2,12 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401  (registers the tables)
 from app.ai.offline import OfflineCopilot
-from app.db import Base, get_session
+from app.db import Base, build_engine, get_session
 from app.main import create_app
 from app.routers.copilot import get_copilot
 
@@ -16,9 +15,8 @@ from app.routers.copilot import get_copilot
 @pytest.fixture
 def session() -> Iterator[Session]:
     # One in-memory database per test: fast, isolated, no files left behind.
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
+    # Same engine setup as the app (foreign keys on), shared by every thread.
+    engine = build_engine("sqlite://", poolclass=StaticPool)
     Base.metadata.create_all(engine)
     with sessionmaker(bind=engine, expire_on_commit=False)() as s:
         yield s
