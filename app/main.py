@@ -5,6 +5,7 @@ from fastapi import FastAPI
 
 from app import __version__, models  # noqa: F401  (registers the tables)
 from app.db import Base, engine
+from app.middleware import request_id_middleware
 from app.routers import activities, companies, contacts, copilot, deals, health
 
 
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
         description="A CRM with an AI copilot for lead scoring and follow-ups.",
         lifespan=lifespan,
     )
+    app.middleware("http")(request_id_middleware)
     app.include_router(health.router)
     app.include_router(companies.router)
     app.include_router(contacts.router)
