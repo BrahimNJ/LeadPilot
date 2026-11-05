@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, models  # noqa: F401  (registers the tables)
 from app.config import get_settings
-from app.db import Base, engine
+from app.db import Base, SessionLocal, engine
+from app.demo import seed_demo
 from app.middleware import request_id_middleware
 from app.routers import activities, companies, contacts, copilot, deals, health
 
@@ -21,6 +22,10 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     )
     # Tables are created at startup until Alembic migrations are introduced.
     Base.metadata.create_all(engine)
+    if get_settings().seed_demo:
+        with SessionLocal() as session:
+            if seed_demo(session):
+                logging.getLogger("leadpilot").info("demo data added")
     yield
 
 

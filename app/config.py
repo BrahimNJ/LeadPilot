@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     # Browser origins allowed to call the API, as a JSON list. Empty: no CORS headers.
     cors_origins: list[str] = []
+    # Fill an empty database with sample records at startup (public demo).
+    seed_demo: bool = False
 
     # Without a key the copilot runs on transparent offline rules.
     anthropic_api_key: str | None = None
