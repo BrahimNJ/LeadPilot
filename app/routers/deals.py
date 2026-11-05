@@ -9,12 +9,16 @@ from app.schemas import DealIn, DealOut, Page, PipelineStage, StageChange
 router = APIRouter(prefix="/deals", tags=["deals"])
 
 
+def _check_contact(session: SessionDep, contact_id: int) -> None:
+    if session.get(Contact, contact_id) is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"contact {contact_id} not found"
+        )
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_deal(payload: DealIn, session: SessionDep) -> DealOut:
-    if session.get(Contact, payload.contact_id) is None:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, f"contact {payload.contact_id} not found"
-        )
+    _check_contact(session, payload.contact_id)
     deal = Deal(**payload.model_dump())
     session.add(deal)
     session.commit()
