@@ -71,6 +71,18 @@ def get_deal(deal_id: int, session: SessionDep) -> DealOut:
     return DealOut.model_validate(get_or_404(session, Deal, deal_id))
 
 
+@router.put("/{deal_id}")
+def update_deal(deal_id: int, payload: DealIn, session: SessionDep) -> DealOut:
+    """Edit the deal's details. The stage only changes through `POST /deals/{id}/stage`."""
+    deal = get_or_404(session, Deal, deal_id)
+    _check_contact(session, payload.contact_id)
+    for field, value in payload.model_dump().items():
+        setattr(deal, field, value)
+    session.commit()
+    session.refresh(deal)
+    return DealOut.model_validate(deal)
+
+
 @router.post("/{deal_id}/stage")
 def move_deal(deal_id: int, payload: StageChange, session: SessionDep) -> DealOut:
     deal = get_or_404(session, Deal, deal_id)
