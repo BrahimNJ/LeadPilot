@@ -83,6 +83,12 @@ def update_deal(deal_id: int, payload: DealIn, session: SessionDep) -> DealOut:
     return DealOut.model_validate(deal)
 
 
+@router.delete("/{deal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_deal(deal_id: int, session: SessionDep) -> None:
+    session.delete(get_or_404(session, Deal, deal_id))
+    session.commit()
+
+
 @router.post("/{deal_id}/stage")
 def move_deal(deal_id: int, payload: StageChange, session: SessionDep) -> DealOut:
     deal = get_or_404(session, Deal, deal_id)
