@@ -1,6 +1,6 @@
 [project]
 name = "leadpilot"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI-assisted CRM: companies, contacts and deals with a Claude-powered copilot."
 readme = "README.md"
 license = "MIT"
