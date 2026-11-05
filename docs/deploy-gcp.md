@@ -91,3 +91,32 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$URL/health
 With `min-instances=0` Cloud Run costs nothing while idle. The smallest Cloud SQL tier is
 the main fixed cost; stop the instance (`gcloud sql instances patch leadpilot-db
 --activation-policy=NEVER`) when you are not using it.
+
+## Public demo, without a database server
+
+For a demo that anyone can open and that costs nothing while idle, skip Cloud SQL and
+Secret Manager: the app runs on SQLite inside the container, fills it with sample data
+at startup, and the copilot uses its offline rules.
+
+```bash
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com
+gcloud artifacts repositories create leadpilot --repository-format=docker --location="$REGION"
+IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/leadpilot/api:$(git rev-parse --short HEAD)"
+gcloud builds submit --tag "$IMAGE"
+
+gcloud run deploy leadpilot-demo \
+  --image="$IMAGE" --region="$REGION" \
+  --set-env-vars=DATABASE_URL=sqlite:////tmp/leadpilot.db,SEED_DEMO=true \
+  --min-instances=0 --max-instances=1 --memory=512Mi \
+  --allow-unauthenticated
+```
+
+What to know about this mode:
+
+- **Data is temporary.** `/tmp` lives in the instance's memory: when Cloud Run stops the
+  instance after a few idle minutes, the next request starts again from the sample data.
+- **One instance only.** Each instance would have its own SQLite file, so
+  `--max-instances=1` keeps every visitor on the same data.
+- **No API key, no AI bill.** Without `ANTHROPIC_API_KEY` the copilot answers with its
+  offline rules, so a public URL can't run up a Claude bill.
+- **Anyone can write.** There is no authentication yet: don't put real data in it.
