@@ -110,3 +110,28 @@ def test_company_search_matches_name_and_domain(client):
     assert client.get("/companies", params={"q": "example.org"}).json()["total"] == 1
     assert client.get("/companies", params={"q": "example"}).json()["total"] == 2
     assert client.get("/companies").json()["total"] == 3
+
+
+def test_company_contacts_are_listed_by_name(client):
+    company = make_company(client)
+    make_contact(
+        client,
+        first_name="Zoe",
+        last_name="Roux",
+        email="zoe@example.com",
+        company_id=company["id"],
+    )
+    make_contact(
+        client,
+        first_name="Hugo",
+        last_name="Blanc",
+        email="hugo@example.com",
+        company_id=company["id"],
+    )
+    make_contact(client, first_name="Solo", last_name="Free", email="solo@example.com")
+
+    page = client.get(f"/companies/{company['id']}/contacts").json()
+
+    assert page["total"] == 2
+    assert [c["last_name"] for c in page["items"]] == ["Blanc", "Roux"]
+    assert client.get("/companies/999/contacts").status_code == 404
