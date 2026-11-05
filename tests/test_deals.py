@@ -72,3 +72,36 @@ def test_list_deals_filters_by_stage(client, contact):
 
     assert page["total"] == 1
     assert page["items"][0]["id"] == lost["id"]
+
+
+def test_update_deal_details_keeps_its_stage(client, contact):
+    deal = make_deal(client, contact)
+    client.post(f"/deals/{deal['id']}/stage", json={"stage": "qualified"})
+
+    response = client.put(
+        f"/deals/{deal['id']}",
+        json={
+            "title": "Kibo onboarding, 2 sites",
+            "amount": 18000,
+            "contact_id": contact["id"],
+            "expected_close": "2027-03-31",
+        },
+    )
+
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["amount"] == 18000
+    assert updated["expected_close"] == "2027-03-31"
+    assert updated["stage"] == "qualified"
+
+
+def test_update_deal_checks_the_contact(client, contact):
+    deal = make_deal(client, contact)
+
+    response = client.put(f"/deals/{deal['id']}", json={"title": "x", "amount": 1, "contact_id": 9})
+
+    assert response.status_code == 422
+    missing = client.put(
+        "/deals/999", json={"title": "x", "amount": 1, "contact_id": contact["id"]}
+    )
+    assert missing.status_code == 404
