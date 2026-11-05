@@ -35,6 +35,9 @@ def list_contacts(
     page: PaginationDep,
     q: str | None = Query(default=None, description="Search in names and email"),
     company_id: int | None = None,
+    min_score: int | None = Query(
+        default=None, ge=0, le=100, description="Only contacts the copilot scored at least this"
+    ),
 ) -> Page[ContactOut]:
     query = select(Contact)
     if q:
@@ -48,6 +51,8 @@ def list_contacts(
         )
     if company_id is not None:
         query = query.where(Contact.company_id == company_id)
+    if min_score is not None:
+        query = query.where(Contact.score >= min_score)
 
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = session.scalars(
