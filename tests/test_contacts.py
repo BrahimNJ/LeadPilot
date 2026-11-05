@@ -77,3 +77,25 @@ def test_contact_search_and_pagination(client):
     assert page["total"] == 5
     assert len(page["items"]) == 2
     assert client.get("/contacts", params={"q": "LEA"}).json()["total"] == 1
+
+
+def test_deleting_a_company_keeps_its_contacts(client):
+    company = make_company(client)
+    contact = make_contact(client, company_id=company["id"])
+
+    assert client.delete(f"/companies/{company['id']}").status_code == 204
+
+    assert client.get(f"/contacts/{contact['id']}").json()["company_id"] is None
+
+
+def test_deleting_a_contact_removes_its_deals_and_activities(client):
+    contact = make_contact(client)
+    deal = client.post(
+        "/deals", json={"title": "Pilot", "amount": 5000, "contact_id": contact["id"]}
+    ).json()
+    client.post(f"/contacts/{contact['id']}/activities", json={"kind": "call", "subject": "Intro"})
+
+    assert client.delete(f"/contacts/{contact['id']}").status_code == 204
+
+    assert client.get(f"/deals/{deal['id']}").status_code == 404
+    assert client.get("/deals").json()["total"] == 0
