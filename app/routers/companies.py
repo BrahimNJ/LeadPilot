@@ -1,5 +1,5 @@
-from fastapi import APIRouter, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Query, status
+from sqlalchemy import func, or_, select
 
 from app.models import Company
 from app.routers.deps import PaginationDep, SessionDep, commit_or_409, get_or_404
@@ -22,10 +22,21 @@ def create_company(payload: CompanyIn, session: SessionDep) -> CompanyOut:
 
 
 @router.get("")
-def list_companies(session: SessionDep, page: PaginationDep) -> Page[CompanyOut]:
-    total = session.scalar(select(func.count()).select_from(Company)) or 0
+def list_companies(
+    session: SessionDep,
+    page: PaginationDep,
+    q: str | None = Query(default=None, description="Search in names and domains"),
+) -> Page[CompanyOut]:
+    query = select(Company)
+    if q:
+        pattern = f"%{q.lower()}%"
+        query = query.where(
+            or_(func.lower(Company.name).like(pattern), func.lower(Company.domain).like(pattern))
+        )
+
+    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = session.scalars(
-        select(Company).order_by(Company.name).limit(page.limit).offset(page.offset)
+        query.order_by(Company.name, Company.id).limit(page.limit).offset(page.offset)
     )
     return Page(
         items=[CompanyOut.model_validate(c) for c in rows],
