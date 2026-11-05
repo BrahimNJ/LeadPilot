@@ -6,6 +6,10 @@
 
 LeadPilot is a CRM with an AI copilot, built for B2B sales teams.
 
+**Live demo:** <https://leadpilot-demo-865877702597.europe-west1.run.app> opens the
+interactive API docs, filled with sample data. It runs the copilot's offline rules and
+resets itself after a few idle minutes, so feel free to try anything.
+
 You keep your contacts, companies and deals in one place, you log your calls and
 meetings, and the copilot helps with the questions that come back every morning:
 
@@ -19,8 +23,9 @@ app running when the AI is unavailable.
 
 ## Features
 
-- Contacts and companies, with search and pagination
+- Contacts and companies, with search, filters and pagination
 - A deals pipeline (`lead → qualified → proposal → negotiation → won / lost`) that only moves forward
+- Filter contacts by lead score to see the hottest leads first
 - A timeline of notes, calls, emails and meetings for each contact
 - Lead scoring, relationship summaries and follow-up drafts powered by Claude
 - An offline mode: without an API key, a rules-based engine takes over, so the app runs anywhere
@@ -92,14 +97,14 @@ app/
 ├── routers/     # HTTP endpoints
 ├── models.py    # database tables
 └── main.py      # application setup
-tests/           # 43 tests, no network needed
+tests/           # 60 tests, no network needed
 docs/            # architecture decision and deployment guide
 ```
 
 ## Tests
 
 ```bash
-ruff check . && mypy app && pytest
+make check       # ruff, mypy and pytest with coverage
 ```
 
 The same checks run on every pull request, and CI also builds the Docker image and
@@ -108,15 +113,19 @@ checks that it starts.
 ## Deployment
 
 LeadPilot is meant to run on Google Cloud Run with a Cloud SQL database. The steps are in
-[docs/deploy-gcp.md](docs/deploy-gcp.md).
+[docs/deploy-gcp.md](docs/deploy-gcp.md), along with the lighter setup used by the public
+demo (SQLite, sample data, no database server).
 
 ## What's next
 
-- Put a live demo online
 - Add authentication
 - Database migrations with Alembic
 - Search the timeline by meaning, not only by keyword
 - A web interface for sales teams
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
