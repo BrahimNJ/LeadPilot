@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,6 +17,12 @@ class Health(BaseModel):
     status: str
     version: str
     database: str
+
+
+@router.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    # Someone opening the bare URL lands on the interactive docs, not on a 404.
+    return RedirectResponse("/docs")
 
 
 @router.get("/health")
