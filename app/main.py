@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__, models  # noqa: F401  (registers the tables)
 from app.config import get_settings
@@ -31,6 +32,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.middleware("http")(request_id_middleware)
+    if origins := get_settings().cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=origins,
+            allow_methods=["*"],
+            allow_headers=["*"],
+            expose_headers=["X-Request-ID"],
+        )
     app.include_router(health.router)
     app.include_router(companies.router)
     app.include_router(contacts.router)
