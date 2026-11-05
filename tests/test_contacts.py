@@ -1,3 +1,6 @@
+from app.models import Contact
+
+
 def make_company(client, **overrides):
     payload = {"name": "Acme", "domain": "acme.example.com", "industry": "Retail", "size": "51-200"}
     response = client.post("/companies", json=payload | overrides)
@@ -135,3 +138,18 @@ def test_company_contacts_are_listed_by_name(client):
     assert page["total"] == 2
     assert [c["last_name"] for c in page["items"]] == ["Blanc", "Roux"]
     assert client.get("/companies/999/contacts").status_code == 404
+
+
+def test_contacts_filtered_by_minimum_score(client, session):
+    hot = make_contact(client, email="hot@example.com")
+    warm = make_contact(client, email="warm@example.com")
+    make_contact(client, email="unscored@example.com")
+    session.get(Contact, hot["id"]).score = 85
+    session.get(Contact, warm["id"]).score = 50
+    session.commit()
+
+    page = client.get("/contacts", params={"min_score": 60}).json()
+
+    assert [c["email"] for c in page["items"]] == ["hot@example.com"]
+    assert client.get("/contacts", params={"min_score": 50}).json()["total"] == 2
+    assert client.get("/contacts", params={"min_score": 101}).status_code == 422
