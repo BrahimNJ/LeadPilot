@@ -43,3 +43,49 @@ Lists come back as a page: `items`, `total`, `limit` (20 by default, 100 at most
 
 Deleting a company keeps its contacts and unlinks them. Deleting a contact also deletes their
 deals and activities.
+
+## Deals
+
+A deal belongs to one contact and starts at the `lead` stage:
+
+```bash
+curl -X POST localhost:8000/deals -H "content-type: application/json" \
+  -d '{"title": "Route planning pilot", "amount": 15000, "contact_id": 1, "expected_close": "2027-03-31"}'
+```
+
+Move it along the pipeline with its own endpoint:
+
+```bash
+curl -X POST localhost:8000/deals/1/stage -H "content-type: application/json" \
+  -d '{"stage": "qualified"}'
+```
+
+The stages are `lead`, `qualified`, `proposal`, `negotiation`, then `won` or `lost`. The rules:
+
+- A deal can skip stages: a warm referral can go straight to `proposal`.
+- A deal can't go back.
+- A deal can only be won from `negotiation`.
+- Any open deal can be lost.
+- A won or lost deal no longer moves.
+
+A refused move answers `422` and says why, for example
+`{"detail": "a deal can only be won from negotiation"}`.
+
+`PUT /deals/{id}` changes the title, amount, contact and expected close date, never the stage.
+`GET /deals?stage=proposal` filters the list and `GET /deals/pipeline` gives the number and
+value of deals in each stage.
+
+## The activity timeline
+
+Log what happens with a contact. The kind is `note`, `call`, `email` or `meeting`:
+
+```bash
+curl -X POST localhost:8000/contacts/1/activities -H "content-type: application/json" \
+  -d '{"kind": "call", "subject": "Budget check", "body": "Approval expected next quarter."}'
+```
+
+`GET /contacts/1/activities` returns the timeline, newest first.
+
+To log something that happened earlier, add `occurred_at` with a timezone, such as
+`"2026-11-02T14:30:00+01:00"`. The contact's `last_contacted_at` only moves forward, so
+logging an old call doesn't make the contact look recently touched.
