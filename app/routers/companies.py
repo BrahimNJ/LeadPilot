@@ -25,7 +25,7 @@ def create_company(payload: CompanyIn, session: SessionDep) -> CompanyOut:
 def list_companies(
     session: SessionDep,
     page: PaginationDep,
-    q: str | None = Query(default=None, description="Search in names and domains"),
+    q: str | None = Query(default=None, max_length=100, description="Search in names and domains"),
 ) -> Page[CompanyOut]:
     query = select(Company)
     if q:
