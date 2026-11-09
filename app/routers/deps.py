@@ -1,8 +1,9 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import ColumnElement, func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.db import Base, get_session
 
@@ -20,6 +21,13 @@ class Pagination:
 
 
 PaginationDep = Annotated[Pagination, Depends()]
+
+
+def contains(
+    column: InstrumentedAttribute[str] | InstrumentedAttribute[str | None], term: str
+) -> ColumnElement[bool]:
+    """Case-insensitive search where `%` and `_` in the term are plain characters."""
+    return func.lower(column).contains(term.lower(), autoescape=True)
 
 
 def get_or_404[M: Base](session: Session, model: type[M], id_: int) -> M:
