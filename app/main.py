@@ -9,7 +9,7 @@ from app import __version__, models  # noqa: F401  (registers the tables)
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.demo import seed_demo
-from app.middleware import request_id_middleware
+from app.middleware import request_id_middleware, security_headers_middleware
 from app.routers import activities, companies, contacts, copilot, deals, health
 
 
@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
         description="A CRM with an AI copilot for lead scoring and follow-ups.",
         lifespan=lifespan,
     )
+    # Added last = runs first: the request ID wraps everything else.
+    app.middleware("http")(security_headers_middleware)
     app.middleware("http")(request_id_middleware)
     if origins := get_settings().cors_origins:
         app.add_middleware(
