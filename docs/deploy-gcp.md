@@ -47,10 +47,13 @@ printf 'postgresql+psycopg://leadpilot:PASSWORD@/leadpilot?host=/cloudsql/%s' "$
 printf '%s' "$ANTHROPIC_API_KEY" | gcloud secrets create anthropic-api-key --data-file=-
 ```
 
-Give the Cloud Run service account access to both secrets and to Cloud SQL:
+Create a service account for the app, with access to these secrets and to Cloud SQL and
+nothing else. Don't use the default Compute Engine account: it usually has the Editor role
+on the whole project, so a flaw in the app would expose everything else in it.
 
 ```bash
-SA="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')-compute@developer.gserviceaccount.com"
+gcloud iam service-accounts create leadpilot-runtime --display-name="LeadPilot runtime"
+SA="leadpilot-runtime@$PROJECT_ID.iam.gserviceaccount.com"
 for secret in database-url anthropic-api-key; do
   gcloud secrets add-iam-policy-binding "$secret" \
     --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor
@@ -68,6 +71,7 @@ gcloud builds submit --tag "$IMAGE"
 
 gcloud run deploy leadpilot \
   --image="$IMAGE" --region="$REGION" \
+  --service-account="$SA" \
   --add-cloudsql-instances="$INSTANCE" \
   --set-secrets=DATABASE_URL=database-url:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest \
   --set-env-vars=LLM_MODEL=claude-opus-5-5,LLM_EFFORT=medium \
