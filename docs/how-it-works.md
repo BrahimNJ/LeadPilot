@@ -44,3 +44,67 @@ Take `POST /deals/1/stage`. Going through the layers from the outside in:
 
 Anything unexpected is caught at the very top: the traceback goes to the logs, and the client
 gets a generic `500` with the request ID.
+
+## Data model
+
+```mermaid
+erDiagram
+    COMPANY |o--o{ CONTACT : employs
+    CONTACT ||--o{ DEAL : has
+    CONTACT ||--o{ ACTIVITY : has
+    COMPANY {
+        string name
+        string domain UK
+        string industry
+        string size
+    }
+    CONTACT {
+        string email UK
+        string role
+        datetime last_contacted_at
+        int score
+        json score_details
+        string score_model
+    }
+    DEAL {
+        string title
+        int amount
+        string stage
+        date expected_close
+        datetime closed_at
+    }
+    ACTIVITY {
+        string kind
+        string subject
+        text body
+        datetime occurred_at
+    }
+```
+
+Foreign keys carry the delete rules: a company's contacts are unlinked (`SET NULL`), a contact's
+deals and activities are removed (`CASCADE`). SQLite only applies these when asked to on each
+connection, which `build_engine` does.
+
+Amounts are whole euros: deal sizes are estimates, so cents would be false precision.
+
+## Pipeline rules
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> lead
+    lead --> qualified
+    qualified --> proposal
+    proposal --> negotiation
+    negotiation --> won
+    lead --> lost
+    qualified --> lost
+    proposal --> lost
+    negotiation --> lost
+    won --> [*]
+    lost --> [*]
+```
+
+Stages can also be skipped going forward, except `won`, which needs `negotiation`. Going back
+is refused because it would hide how long a deal really took. The rules live in
+`app/domain/pipeline.py`, with no web or database code, so they are tested on their own.
