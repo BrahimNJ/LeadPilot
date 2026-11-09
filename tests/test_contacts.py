@@ -153,3 +153,13 @@ def test_contacts_filtered_by_minimum_score(client, session):
     assert [c["email"] for c in page["items"]] == ["hot@example.com"]
     assert client.get("/contacts", params={"min_score": 50}).json()["total"] == 2
     assert client.get("/contacts", params={"min_score": 101}).status_code == 422
+
+
+def test_search_wildcards_are_plain_text(client):
+    make_contact(client, first_name="Ana", last_name="Lopez", email="ana@example.com")
+    make_company(client, name="Acme", domain=None)
+
+    assert client.get("/contacts", params={"q": "%"}).json()["total"] == 0
+    assert client.get("/contacts", params={"q": "a_a"}).json()["total"] == 0
+    assert client.get("/companies", params={"q": "%"}).json()["total"] == 0
+    assert client.get("/contacts", params={"q": "ana"}).json()["total"] == 1
