@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     cors_origins: list[str] = []
     # Largest request body accepted, in bytes.
     max_body_bytes: int = 1_048_576
+    # Requests per client and per minute. 0 turns the limit off.
+    rate_limit_per_minute: int = 0
+    # Behind a proxy that appends the real client to X-Forwarded-For (Cloud Run does).
+    trust_forwarded_for: bool = False
     # Fill an empty database with sample records at startup (public demo).
     seed_demo: bool = False
 

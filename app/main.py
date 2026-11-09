@@ -11,6 +11,7 @@ from app.db import Base, SessionLocal, engine
 from app.demo import seed_demo
 from app.middleware import (
     body_limit_middleware,
+    rate_limit_middleware,
     request_id_middleware,
     security_headers_middleware,
 )
@@ -42,6 +43,10 @@ def create_app() -> FastAPI:
     )
     settings = get_settings()
     app.middleware("http")(body_limit_middleware(settings.max_body_bytes))
+    if settings.rate_limit_per_minute > 0:
+        app.middleware("http")(
+            rate_limit_middleware(settings.rate_limit_per_minute, settings.trust_forwarded_for)
+        )
     # Added last = runs first: the request ID wraps everything else.
     app.middleware("http")(security_headers_middleware)
     app.middleware("http")(request_id_middleware)
