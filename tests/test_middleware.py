@@ -121,3 +121,19 @@ def test_forwarded_header_is_ignored_unless_trusted(client_with):
 
     assert client.get("/companies", headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 200
     assert client.get("/companies", headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 429
+
+
+def test_unexpected_error_leaks_nothing_and_gives_the_request_id(client_with):
+    client = client_with()
+
+    def explode():
+        raise RuntimeError("password=hunter2")
+
+    client.app.add_api_route("/boom", explode)
+
+    response = client.get("/boom", headers={"X-Request-ID": "trace-500"})
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "internal server error", "request_id": "trace-500"}
+    assert response.headers["X-Request-ID"] == "trace-500"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
