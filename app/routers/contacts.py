@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 
@@ -35,6 +37,9 @@ def list_contacts(
     page: PaginationDep,
     q: str | None = Query(default=None, max_length=100, description="Search in names and email"),
     company_id: int | None = None,
+    sort: Literal["name", "score"] = Query(
+        default="name", description="`score`: best leads first, unscored contacts last"
+    ),
     min_score: int | None = Query(
         default=None, ge=0, le=100, description="Only contacts the copilot scored at least this"
     ),
@@ -54,9 +59,9 @@ def list_contacts(
         query = query.where(Contact.score >= min_score)
 
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = session.scalars(
-        query.order_by(Contact.last_name, Contact.first_name).limit(page.limit).offset(page.offset)
-    )
+    by_name = (Contact.last_name, Contact.first_name, Contact.id)
+    order = (Contact.score.desc().nulls_last(), *by_name) if sort == "score" else by_name
+    rows = session.scalars(query.order_by(*order).limit(page.limit).offset(page.offset))
     return Page(
         items=[ContactOut.model_validate(c) for c in rows],
         total=total,
