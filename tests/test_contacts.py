@@ -169,3 +169,17 @@ def test_search_terms_are_limited_in_length(client):
     assert client.get("/contacts", params={"q": "x" * 100}).status_code == 200
     assert client.get("/contacts", params={"q": "x" * 101}).status_code == 422
     assert client.get("/companies", params={"q": "x" * 101}).status_code == 422
+
+
+def test_contacts_sorted_by_score_put_unscored_last(client, session):
+    low = make_contact(client, last_name="Low", email="low@example.com")
+    make_contact(client, last_name="Aaa", email="none@example.com")
+    high = make_contact(client, last_name="High", email="high@example.com")
+    session.get(Contact, low["id"]).score = 20
+    session.get(Contact, high["id"]).score = 90
+    session.commit()
+
+    page = client.get("/contacts", params={"sort": "score"}).json()
+
+    assert [c["last_name"] for c in page["items"]] == ["High", "Low", "Aaa"]
+    assert client.get("/contacts", params={"sort": "age"}).status_code == 422
