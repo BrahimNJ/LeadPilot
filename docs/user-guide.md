@@ -89,3 +89,45 @@ curl -X POST localhost:8000/contacts/1/activities -H "content-type: application/
 To log something that happened earlier, add `occurred_at` with a timezone, such as
 `"2026-11-02T14:30:00+01:00"`. The contact's `last_contacted_at` only moves forward, so
 logging an old call doesn't make the contact look recently touched.
+
+## The copilot
+
+The copilot reads one contact at a time: their details, company, deals and activities.
+
+**Who should I call first?**
+
+```bash
+curl -X POST localhost:8000/contacts/1/score
+```
+
+```json
+{
+  "lead": {
+    "score": 90,
+    "temperature": "hot",
+    "reasons": ["Open deal 'Route planning pilot' in negotiation", "Contacted 2 days ago"],
+    "risks": []
+  },
+  "model": "offline-rules"
+}
+```
+
+Temperature is `hot` from 70, `warm` from 40 and `cold` below. The score is saved on the
+contact, which is what `sort=score` and `min_score` use. `model` tells you what produced it.
+
+**Where are we with this client?** `POST /contacts/1/insights` returns a short summary, the
+open questions and one next action.
+
+**What do I write?**
+
+```bash
+curl -X POST localhost:8000/contacts/1/follow-up -H "content-type: application/json" \
+  -d '{"language": "en", "goal": "Get a date for the security review"}'
+```
+
+This returns a `subject` and a `body`, in `fr` (the default) or `en`. It is only a draft:
+LeadPilot sends nothing and stores nothing, you stay in control.
+
+**Offline or Claude?** Without `ANTHROPIC_API_KEY`, as on the public demo, a set of simple
+rules answers and `model` is `offline-rules`. Those rules don't use the `goal`. With a key,
+Claude answers from the same data.
