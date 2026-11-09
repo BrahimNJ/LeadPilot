@@ -108,9 +108,13 @@ gcloud artifacts repositories create leadpilot --repository-format=docker --loca
 IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/leadpilot/api:$(git rev-parse --short HEAD)"
 gcloud builds submit --tag "$IMAGE"
 
+# The demo needs no Google Cloud access at all, so this account gets no role.
+gcloud iam service-accounts create leadpilot-demo-runtime --display-name="LeadPilot demo runtime"
+
 gcloud run deploy leadpilot-demo \
   --image="$IMAGE" --region="$REGION" \
-  --set-env-vars=DATABASE_URL=sqlite:////tmp/leadpilot.db,SEED_DEMO=true \
+  --service-account="leadpilot-demo-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
+  --set-env-vars=DATABASE_URL=sqlite:////tmp/leadpilot.db,SEED_DEMO=true,RATE_LIMIT_PER_MINUTE=120,TRUST_FORWARDED_FOR=true \
   --min-instances=0 --max-instances=1 --memory=512Mi \
   --allow-unauthenticated
 ```
@@ -124,3 +128,4 @@ What to know about this mode:
 - **No API key, no AI bill.** Without `ANTHROPIC_API_KEY` the copilot answers with its
   offline rules, so a public URL can't run up a Claude bill.
 - **Anyone can write.** There is no authentication yet: don't put real data in it.
+- **Requests are limited.** 120 per minute and per client; beyond that the API answers `429`.
