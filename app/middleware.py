@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 
 REQUEST_ID_HEADER = "X-Request-ID"
 # Accept the caller's ID (a load balancer or another service) only if it is harmless.
@@ -56,3 +57,23 @@ async def security_headers_middleware(
     if not request.url.path.startswith(_DOCS_PATHS):
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
+
+
+Middleware = Callable[[Request, Callable[[Request], Awaitable[Response]]], Awaitable[Response]]
+
+
+def body_limit_middleware(max_bytes: int) -> Middleware:
+    """Refuse a body that is too large before anything reads it."""
+
+    async def limit(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        # A chunked body doesn't announce its size, so it couldn't be checked up front.
+        if "chunked" in request.headers.get("Transfer-Encoding", "").lower():
+            return JSONResponse({"detail": "a Content-Length is required"}, status_code=411)
+        length = request.headers.get("Content-Length", "0")
+        if length.isdecimal() and int(length) > max_bytes:
+            return JSONResponse({"detail": "request body too large"}, status_code=413)
+        return await call_next(request)
+
+    return limit
