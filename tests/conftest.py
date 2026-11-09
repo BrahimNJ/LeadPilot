@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +7,7 @@ from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401  (registers the tables)
 from app.ai.offline import OfflineCopilot
+from app.config import get_settings
 from app.db import Base, build_engine, get_session
 from app.main import create_app
 from app.routers.copilot import get_copilot
@@ -21,6 +22,25 @@ def session() -> Iterator[Session]:
     with sessionmaker(bind=engine, expire_on_commit=False)() as s:
         yield s
     engine.dispose()
+
+
+@pytest.fixture
+def client_with(session: Session, monkeypatch: pytest.MonkeyPatch) -> Callable[..., TestClient]:
+    """Build a client for an app created with these environment variables."""
+
+    def build(**env: str) -> TestClient:
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        get_settings.cache_clear()
+        try:
+            app = create_app()
+        finally:
+            get_settings.cache_clear()
+        app.dependency_overrides[get_session] = lambda: session
+        # A 500 must come back as a response here, as it does for a real client.
+        return TestClient(app, raise_server_exceptions=False)
+
+    return build
 
 
 @pytest.fixture
