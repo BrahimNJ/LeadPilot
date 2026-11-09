@@ -9,6 +9,8 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 
+from app.ratelimit import RateLimiter
+
 REQUEST_ID_HEADER = "X-Request-ID"
 # Accept the caller's ID (a load balancer or another service) only if it is harmless.
 _VALID_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -77,3 +79,33 @@ def body_limit_middleware(max_bytes: int) -> Middleware:
         return await call_next(request)
 
     return limit
+
+
+def _client_key(request: Request, trust_forwarded_for: bool) -> str:
+    if trust_forwarded_for:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        # Only the last entry comes from the proxy: earlier ones are whatever the caller sent.
+        if last := forwarded.rsplit(",", 1)[-1].strip():
+            return last
+    return request.client.host if request.client else "unknown"
+
+
+def rate_limit_middleware(limit: int, trust_forwarded_for: bool) -> Middleware:
+    limiter = RateLimiter(limit)
+
+    async def rate_limit(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        # Uptime checks must not be throttled, and /health does nothing costly.
+        if request.url.path != "/health":
+            client = _client_key(request, trust_forwarded_for)
+            logger.debug("rate limit key: %s", client)
+            if wait := limiter.check(client, time.time()):
+                return JSONResponse(
+                    {"detail": "too many requests, slow down"},
+                    status_code=429,
+                    headers={"Retry-After": str(wait)},
+                )
+        return await call_next(request)
+
+    return rate_limit
