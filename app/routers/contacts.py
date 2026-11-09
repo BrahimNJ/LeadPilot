@@ -33,7 +33,7 @@ def create_contact(payload: ContactIn, session: SessionDep) -> ContactOut:
 def list_contacts(
     session: SessionDep,
     page: PaginationDep,
-    q: str | None = Query(default=None, description="Search in names and email"),
+    q: str | None = Query(default=None, max_length=100, description="Search in names and email"),
     company_id: int | None = None,
     min_score: int | None = Query(
         default=None, ge=0, le=100, description="Only contacts the copilot scored at least this"
