@@ -163,3 +163,9 @@ def test_search_wildcards_are_plain_text(client):
     assert client.get("/contacts", params={"q": "a_a"}).json()["total"] == 0
     assert client.get("/companies", params={"q": "%"}).json()["total"] == 0
     assert client.get("/contacts", params={"q": "ana"}).json()["total"] == 1
+
+
+def test_search_terms_are_limited_in_length(client):
+    assert client.get("/contacts", params={"q": "x" * 100}).status_code == 200
+    assert client.get("/contacts", params={"q": "x" * 101}).status_code == 422
+    assert client.get("/companies", params={"q": "x" * 101}).status_code == 422
