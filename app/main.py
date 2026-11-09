@@ -2,14 +2,17 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app import __version__, models  # noqa: F401  (registers the tables)
 from app.config import get_settings
 from app.db import Base, SessionLocal, engine
 from app.demo import seed_demo
 from app.middleware import (
+    REQUEST_ID_HEADER,
+    SECURITY_HEADERS,
     body_limit_middleware,
     rate_limit_middleware,
     request_id_middleware,
@@ -32,6 +35,16 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             if seed_demo(session):
                 logging.getLogger("leadpilot").info("demo data added")
     yield
+
+
+async def unhandled_error(request: Request, _: Exception) -> JSONResponse:
+    # The traceback goes to the logs. The client only gets the ID to look it up with.
+    request_id = getattr(request.state, "request_id", "unknown")
+    return JSONResponse(
+        {"detail": "internal server error", "request_id": request_id},
+        status_code=500,
+        headers={**SECURITY_HEADERS, REQUEST_ID_HEADER: request_id},
+    )
 
 
 def create_app() -> FastAPI:
@@ -58,6 +71,7 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
             expose_headers=["X-Request-ID"],
         )
+    app.add_exception_handler(Exception, unhandled_error)
     app.include_router(health.router)
     app.include_router(companies.router)
     app.include_router(contacts.router)
