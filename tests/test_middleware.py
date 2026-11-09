@@ -64,3 +64,25 @@ def test_interactive_docs_keep_working_without_the_csp(client):
     assert response.status_code == 200
     assert "Content-Security-Policy" not in response.headers
     assert response.headers["X-Content-Type-Options"] == "nosniff"
+
+
+def test_oversized_body_is_refused(client_with):
+    client = client_with(MAX_BODY_BYTES="50")
+
+    response = client.post("/companies", json={"name": "x" * 100})
+
+    assert response.status_code == 413
+    assert "X-Request-ID" in response.headers
+    assert client.post("/companies", json={"name": "Small"}).status_code == 201
+
+
+def test_chunked_body_is_refused(client_with):
+    client = client_with(MAX_BODY_BYTES="50")
+
+    response = client.post(
+        "/companies",
+        content=iter([b'{"name":', b'"x"}']),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 411
