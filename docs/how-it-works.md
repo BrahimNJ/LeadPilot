@@ -108,3 +108,53 @@ stateDiagram-v2
 Stages can also be skipped going forward, except `won`, which needs `negotiation`. Going back
 is refused because it would hide how long a deal really took. The rules live in
 `app/domain/pipeline.py`, with no web or database code, so they are tested on their own.
+
+## The copilot
+
+Routers only know the small `Copilot` protocol. On the first copilot call,
+`get_copilot` picks an implementation: `ClaudeCopilot` if `ANTHROPIC_API_KEY` is set,
+`OfflineCopilot` otherwise. The reasoning is in [ADR 0001](adr/0001-copilot-boundary.md).
+
+```mermaid
+sequenceDiagram
+    participant R as Router
+    participant C as render()
+    participant M as Claude
+    R->>R: load contact, deals, activities
+    R->>C: build the record
+    C-->>R: text, 50 latest activities at most
+    R->>M: system prompt + crm_record + task
+    M-->>R: JSON matching the schema
+    R->>R: validate, store the score
+```
+
+Four rules keep this safe:
+
+- **One door out.** `render()` in `app/ai/context.py` writes all the text the model receives.
+  Email addresses and phone numbers aren't part of it.
+- **Data stays data.** The record sits in `<crm_record>` tags, and the system prompt says that
+  anything inside is not an instruction.
+- **Checked answers.** Claude answers against a Pydantic schema. An answer that doesn't fit
+  becomes a `503`, never a crash.
+- **Humans send the emails.** Follow-ups are returned as drafts and never stored or sent.
+
+### The offline score
+
+Without an API key, the score is plain arithmetic, starting from 10:
+
+| Signal | Points |
+| --- | --- |
+| Best open deal is `lead` / `qualified` / `proposal` / `negotiation` | +15 / +30 / +45 / +60 |
+| Last activity within 14 days | +20 |
+| Last activity more than 45 days ago | -10 |
+| 3 activities or more | +5 |
+
+The result is kept between 0 and 100. Sarah in the demo data: 10 + 60 (negotiation) + 20
+(contacted 2 days ago) = 90, hot.
+
+## How it is tested
+
+The tests need no network and no key. Each one gets its own in-memory database, built with the
+app's engine settings. The Claude path runs the real SDK against a fake HTTP transport, which
+checks both the request sent and how the answer is read. CI also audits dependencies, then
+builds the container and calls `/health` on it.
