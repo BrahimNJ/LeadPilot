@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, status
 from sqlalchemy import func, or_, select
 
 from app.models import Company, Contact
-from app.routers.deps import PaginationDep, SessionDep, commit_or_409, get_or_404
+from app.routers.deps import PaginationDep, SessionDep, commit_or_409, contains, get_or_404
 from app.schemas import CompanyIn, CompanyOut, ContactOut, Page
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -29,10 +29,7 @@ def list_companies(
 ) -> Page[CompanyOut]:
     query = select(Company)
     if q:
-        pattern = f"%{q.lower()}%"
-        query = query.where(
-            or_(func.lower(Company.name).like(pattern), func.lower(Company.domain).like(pattern))
-        )
+        query = query.where(or_(contains(Company.name, q), contains(Company.domain, q)))
 
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     rows = session.scalars(

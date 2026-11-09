@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 
 from app.models import Company, Contact
-from app.routers.deps import PaginationDep, SessionDep, commit_or_409, get_or_404
+from app.routers.deps import PaginationDep, SessionDep, commit_or_409, contains, get_or_404
 from app.schemas import ContactIn, ContactOut, Page
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -41,12 +41,11 @@ def list_contacts(
 ) -> Page[ContactOut]:
     query = select(Contact)
     if q:
-        pattern = f"%{q.lower()}%"
         query = query.where(
             or_(
-                func.lower(Contact.first_name).like(pattern),
-                func.lower(Contact.last_name).like(pattern),
-                func.lower(Contact.email).like(pattern),
+                contains(Contact.first_name, q),
+                contains(Contact.last_name, q),
+                contains(Contact.email, q),
             )
         )
     if company_id is not None:
