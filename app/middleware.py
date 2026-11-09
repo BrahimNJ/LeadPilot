@@ -43,7 +43,7 @@ async def request_id_middleware(
 
 # The interactive docs load their script and styles from a CDN, so they can't take this CSP.
 _DOCS_PATHS = ("/docs", "/redoc")
-_SECURITY_HEADERS = {
+SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
@@ -55,7 +55,7 @@ async def security_headers_middleware(
     request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
     response = await call_next(request)
-    response.headers.update(_SECURITY_HEADERS)
+    response.headers.update(SECURITY_HEADERS)
     if not request.url.path.startswith(_DOCS_PATHS):
         response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     return response
