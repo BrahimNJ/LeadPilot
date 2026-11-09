@@ -25,10 +25,12 @@ app running when the AI is unavailable.
 
 - Contacts and companies, with search, filters and pagination
 - A deals pipeline (`lead → qualified → proposal → negotiation → won / lost`) that only moves forward
-- Filter contacts by lead score to see the hottest leads first
+- Sort and filter contacts by lead score to see the hottest leads first
+- A sales overview with the open pipeline value and the win rate
 - A timeline of notes, calls, emails and meetings for each contact
 - Lead scoring, relationship summaries and follow-up drafts powered by Claude
 - An offline mode: without an API key, a rules-based engine takes over, so the app runs anywhere
+- Hardened for public exposure: rate limit, body limits, security headers, safe error messages
 
 ## Tech stack
 
@@ -53,6 +55,13 @@ Then open <http://localhost:8000/docs>: every endpoint can be tried from there.
 
 To use Claude, put your key in `.env` (`ANTHROPIC_API_KEY=...`). Leave it empty to stay
 in offline mode.
+
+## Documentation
+
+- [User guide](docs/user-guide.md): every workflow, with examples
+- [How it works](docs/how-it-works.md): architecture, data model, pipeline, copilot
+- [Configuration](docs/configuration.md): every setting
+- [Security policy](SECURITY.md): what is protected and the known limits
 
 ## Try it
 
@@ -97,8 +106,8 @@ app/
 ├── routers/     # HTTP endpoints
 ├── models.py    # database tables
 └── main.py      # application setup
-tests/           # 60 tests, no network needed
-docs/            # architecture decision and deployment guide
+tests/           # 78 tests, no network needed
+docs/            # user guide, how it works, configuration, deployment, decisions
 ```
 
 ## Tests
