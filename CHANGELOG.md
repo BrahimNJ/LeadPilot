@@ -4,6 +4,26 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-09
+
+### Added
+
+- `GET /contacts?sort=score` and `GET /stats`, a sales overview (#33)
+- User guide, how-it-works, configuration reference and two ADRs (#34)
+- `SECURITY.md` and a dependency audit in CI (#32)
+
+### Security
+
+- Security headers on every response (#32)
+- Rate limit per client with `RATE_LIMIT_PER_MINUTE`, and request body limits (#32)
+- Unexpected errors return a generic 500 with a request ID (#32)
+- The deployment guide uses dedicated, least-privilege service accounts (#32)
+
+### Fixed
+
+- `%` and `_` in search terms no longer act as wildcards, and terms are capped at 100
+  characters (#32)
+
 ## [0.2.0] - 2026-11-05
 
 ### Added
@@ -29,5 +49,6 @@ First release: companies, contacts, a forward-only deals pipeline, an activity t
 and a Claude copilot for lead scoring, relationship summaries and follow-up drafts, with
 an offline fallback. Container image and Cloud Run deployment guide.
 
+[0.3.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/BrahimNJ/LeadPilot/releases/tag/v0.1.0
