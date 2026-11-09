@@ -131,7 +131,7 @@ sequenceDiagram
 Four rules keep this safe:
 
 - **One door out.** `render()` in `app/ai/context.py` writes all the text the model receives.
-  Email addresses and phone numbers aren't part of it.
+  The contact's email address and phone number aren't sent.
 - **Data stays data.** The record sits in `<crm_record>` tags, and the system prompt says that
   anything inside is not an instruction.
 - **Checked answers.** Claude answers against a Pydantic schema. An answer that doesn't fit
