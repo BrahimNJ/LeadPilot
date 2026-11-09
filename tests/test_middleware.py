@@ -86,3 +86,38 @@ def test_chunked_body_is_refused(client_with):
     )
 
     assert response.status_code == 411
+
+
+def test_rate_limit_answers_429_with_a_wait_time(client_with):
+    client = client_with(RATE_LIMIT_PER_MINUTE="2")
+
+    statuses = [client.get("/companies").status_code for _ in range(3)]
+    refused = client.get("/companies")
+
+    assert statuses == [200, 200, 429]
+    assert refused.status_code == 429
+    assert 1 <= int(refused.headers["Retry-After"]) <= 60
+    assert "X-Request-ID" in refused.headers
+
+
+def test_health_is_not_rate_limited(client_with):
+    client = client_with(RATE_LIMIT_PER_MINUTE="1")
+
+    assert [client.get("/health").status_code for _ in range(3)] == [200, 200, 200]
+
+
+def test_a_forged_forwarded_header_does_not_escape_the_limit(client_with):
+    client = client_with(RATE_LIMIT_PER_MINUTE="1", TRUST_FORWARDED_FOR="true")
+
+    first = client.get("/companies", headers={"X-Forwarded-For": "1.1.1.1, 203.0.113.9"})
+    second = client.get("/companies", headers={"X-Forwarded-For": "2.2.2.2, 203.0.113.9"})
+    other = client.get("/companies", headers={"X-Forwarded-For": "203.0.113.10"})
+
+    assert (first.status_code, second.status_code, other.status_code) == (200, 429, 200)
+
+
+def test_forwarded_header_is_ignored_unless_trusted(client_with):
+    client = client_with(RATE_LIMIT_PER_MINUTE="1")
+
+    assert client.get("/companies", headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 200
+    assert client.get("/companies", headers={"X-Forwarded-For": "2.2.2.2"}).status_code == 429
