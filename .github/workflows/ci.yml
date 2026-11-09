@@ -38,6 +38,23 @@ jobs:
       - name: Tests with coverage
         run: pytest --cov --cov-report=term
 
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: pip install -e . pip-audit
+
+      - name: Check for known vulnerabilities
+        run: pip-audit --skip-editable
+
   image:
     name: Build and smoke-test the container
     runs-on: ubuntu-latest
