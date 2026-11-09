@@ -46,3 +46,21 @@ def test_cors_allows_configured_origins(monkeypatch):
 
     assert preflight.status_code == 200
     assert preflight.headers["access-control-allow-origin"] == "https://app.example.com"
+
+
+def test_responses_carry_security_headers(client):
+    headers = client.get("/health").headers
+
+    assert headers["X-Content-Type-Options"] == "nosniff"
+    assert headers["X-Frame-Options"] == "DENY"
+    assert headers["Referrer-Policy"] == "no-referrer"
+    assert "max-age=" in headers["Strict-Transport-Security"]
+    assert headers["Content-Security-Policy"].startswith("default-src 'none'")
+
+
+def test_interactive_docs_keep_working_without_the_csp(client):
+    response = client.get("/docs")
+
+    assert response.status_code == 200
+    assert "Content-Security-Policy" not in response.headers
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
