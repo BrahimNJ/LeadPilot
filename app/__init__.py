@@ -1,3 +1,3 @@
 """LeadPilot: a CRM with an AI copilot."""
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
