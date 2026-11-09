@@ -131,3 +131,39 @@ LeadPilot sends nothing and stores nothing, you stay in control.
 **Offline or Claude?** Without `ANTHROPIC_API_KEY`, as on the public demo, a set of simple
 rules answers and `model` is `offline-rules`. Those rules don't use the `goal`. With a key,
 Claude answers from the same data.
+
+## The sales overview
+
+`GET /stats` gives the headline numbers:
+
+```json
+{
+  "companies": 3,
+  "contacts": 5,
+  "open_deals": 3,
+  "open_pipeline_amount": 65000,
+  "won_deals": 1,
+  "lost_deals": 1,
+  "win_rate": 0.5
+}
+```
+
+`win_rate` is won / (won + lost). It is `null` until a deal is closed.
+
+## When something goes wrong
+
+Errors are JSON with a `detail` field.
+
+| Status | Meaning | What to do |
+| --- | --- | --- |
+| `404` | The record doesn't exist | Check the ID |
+| `409` | The email or domain is already used | Find the existing record |
+| `411` | The body was sent in chunks | Send a normal body with its length |
+| `413` | The body is too large (1 MB by default) | Send less |
+| `422` | Invalid data, a refused pipeline move, or the AI declined | Read `detail` |
+| `429` | Too many requests | Wait for the seconds given in `Retry-After` |
+| `500` | A bug on our side | Report the `request_id` from the answer |
+| `503` | The AI provider is unavailable | Retry shortly; the rest of the API still works |
+
+Every response has an `X-Request-ID` header. Include it when you report a problem: it points
+to the matching line in the logs.
