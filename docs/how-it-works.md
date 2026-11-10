@@ -155,6 +155,7 @@ The result is kept between 0 and 100. Sarah in the demo data: 10 + 60 (negotiati
 ## How it is tested
 
 The tests need no network and no key. Each one gets its own in-memory database, built with the
-app's engine settings. The Claude path runs the real SDK against a fake HTTP transport, which
+app's engine settings. CI runs the same suite a second time on PostgreSQL 17, the production
+database. The Claude path runs the real SDK against a fake HTTP transport, which
 checks both the request sent and how the answer is read. CI also audits dependencies, then
 builds the container and calls `/health` on it.

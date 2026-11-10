@@ -20,7 +20,18 @@ to work on the project. Tests never call the real API.
 make check     # ruff, ruff format, mypy (strict) and pytest with coverage
 ```
 
-CI runs the same checks and also builds the Docker image and checks that it starts.
+CI runs the same checks, runs the tests a second time on PostgreSQL 17, audits the
+dependencies, and builds the Docker image and checks that it starts.
+
+To run the tests on PostgreSQL yourself, point `TEST_DATABASE_URL` at an empty database:
+
+```bash
+docker run -d --name leadpilot-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=leadpilot_test \
+  -p 5432:5432 postgres:17
+TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/leadpilot_test pytest
+```
+
+The tests drop and recreate every table in that database.
 
 ## Conventions
 
