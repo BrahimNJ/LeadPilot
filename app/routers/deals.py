@@ -1,7 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
-from app.domain.pipeline import Stage, TransitionError, check_transition
+from app.domain.pipeline import CLOSED_STAGES, Stage, TransitionError, check_transition
 from app.models import Contact, Deal, utcnow
 from app.routers.deps import PaginationDep, SessionDep, get_or_404
 from app.schemas import DealIn, DealOut, Page, PipelineStage, StageChange
@@ -32,8 +32,15 @@ def list_deals(
     page: PaginationDep,
     stage: Stage | None = None,
     contact_id: int | None = None,
+    overdue: bool = Query(
+        default=False, description="Only open deals whose expected close date has passed"
+    ),
 ) -> Page[DealOut]:
     query = select(Deal)
+    if overdue:
+        query = query.where(
+            Deal.stage.not_in(list(CLOSED_STAGES)), Deal.expected_close < utcnow().date()
+        )
     if stage is not None:
         query = query.where(Deal.stage == stage)
     if contact_id is not None:
