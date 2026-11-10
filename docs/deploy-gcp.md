@@ -75,9 +75,12 @@ gcloud run deploy leadpilot \
   --add-cloudsql-instances="$INSTANCE" \
   --set-secrets=DATABASE_URL=database-url:latest,ANTHROPIC_API_KEY=anthropic-api-key:latest \
   --set-env-vars=LLM_MODEL=claude-opus-5-5,LLM_EFFORT=medium \
-  --min-instances=0 --max-instances=3 --memory=512Mi \
+  --min-instances=0 --max-instances=3 --memory=512Mi --cpu-boost \
   --no-allow-unauthenticated
 ```
+
+`--cpu-boost` gives the instance extra CPU while it starts, which shortens the wait for the
+first request after an idle period.
 
 `--no-allow-unauthenticated` keeps the API private until authentication lands in the app:
 call it with an identity token.
@@ -115,7 +118,7 @@ gcloud run deploy leadpilot-demo \
   --image="$IMAGE" --region="$REGION" \
   --service-account="leadpilot-demo-runtime@$PROJECT_ID.iam.gserviceaccount.com" \
   --set-env-vars=DATABASE_URL=sqlite:////tmp/leadpilot.db,SEED_DEMO=true,RATE_LIMIT_PER_MINUTE=120,TRUST_FORWARDED_FOR=true \
-  --min-instances=0 --max-instances=1 --memory=512Mi \
+  --min-instances=0 --max-instances=1 --memory=512Mi --cpu-boost \
   --allow-unauthenticated
 ```
 
