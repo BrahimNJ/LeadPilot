@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable, Iterator
 
 import pytest
@@ -15,9 +16,11 @@ from app.routers.copilot import get_copilot
 
 @pytest.fixture
 def session() -> Iterator[Session]:
-    # One in-memory database per test: fast, isolated, no files left behind.
-    # Same engine setup as the app (foreign keys on), shared by every thread.
-    engine = build_engine("sqlite://", poolclass=StaticPool)
+    # TEST_DATABASE_URL runs the suite on another database, such as PostgreSQL in CI.
+    # Otherwise each test gets its own in-memory SQLite database, shared by every thread.
+    url = os.environ.get("TEST_DATABASE_URL")
+    engine = build_engine(url) if url else build_engine("sqlite://", poolclass=StaticPool)
+    Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     with sessionmaker(bind=engine, expire_on_commit=False)() as s:
         yield s
