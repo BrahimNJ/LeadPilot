@@ -116,3 +116,16 @@ def test_deleted_deal_leaves_the_pipeline(client, contact):
     lead = next(s for s in client.get("/deals/pipeline").json() if s["stage"] == "lead")
     assert lead == {"stage": "lead", "deals": 0, "amount": 0}
     assert client.delete(f"/deals/{deal['id']}").status_code == 404
+
+
+def test_overdue_lists_open_deals_past_their_close_date(client, contact):
+    late = make_deal(client, contact, title="Late", expected_close="2020-01-31")
+    make_deal(client, contact, title="Future", expected_close="2999-12-31")
+    make_deal(client, contact, title="No date")
+    lost = make_deal(client, contact, title="Lost late", expected_close="2020-01-31")
+    client.post(f"/deals/{lost['id']}/stage", json={"stage": "lost"})
+
+    page = client.get("/deals", params={"overdue": "true"}).json()
+
+    assert [d["id"] for d in page["items"]] == [late["id"]]
+    assert client.get("/deals").json()["total"] == 4
