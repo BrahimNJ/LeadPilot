@@ -75,6 +75,9 @@ A refused move answers `422` and says why, for example
 `GET /deals?stage=proposal` filters the list and `GET /deals/pipeline` gives the number and
 value of deals in each stage.
 
+`GET /deals?overdue=true` keeps the open deals whose expected close date has passed: the ones
+to update or chase. Deals without a date never count as overdue.
+
 ## The activity timeline
 
 Log what happens with a contact. The kind is `note`, `call`, `email` or `meeting`:
