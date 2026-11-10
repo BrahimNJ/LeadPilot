@@ -4,6 +4,18 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `GET /deals?overdue=true` lists open deals past their expected close date (#43)
+- CI runs the test suite on PostgreSQL 17 too, through `TEST_DATABASE_URL` (#41)
+
+### Changed
+
+- Faster cold starts: the Anthropic SDK is only loaded when an API key is set, and the
+  deployment uses startup CPU boost. The demo went from 18 s to 4.5 s (#39)
+
 ## [0.3.0] - 2026-11-09
 
 ### Added
