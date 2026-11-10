@@ -1,12 +1,10 @@
 from functools import lru_cache
 from typing import Annotated
 
-import anthropic
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from app.ai.claude import ClaudeCopilot
 from app.ai.context import ContactContext
 from app.ai.copilot import Copilot, CopilotError, CopilotRefused
 from app.ai.offline import OfflineCopilot
@@ -23,6 +21,11 @@ def get_copilot() -> Copilot:
     settings = get_settings()
     if not settings.anthropic_api_key:
         return OfflineCopilot()
+    # Imported here: the SDK takes seconds to load, which a keyless instance never needs.
+    import anthropic
+
+    from app.ai.claude import ClaudeCopilot
+
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     return ClaudeCopilot(client, model=settings.llm_model, effort=settings.llm_effort)
 
