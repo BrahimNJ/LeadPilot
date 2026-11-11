@@ -1,7 +1,10 @@
+import csv
+import io
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import Select, func, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.models import Company, Contact
 from app.routers.deps import PaginationDep, SessionDep, commit_or_409, contains, get_or_404
@@ -76,6 +79,51 @@ def list_contacts(
         total=total,
         limit=page.limit,
         offset=page.offset,
+    )
+
+
+MAX_EXPORT_ROWS = 10_000
+EXPORT_COLUMNS = [
+    "id",
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "role",
+    "company",
+    "score",
+    "last_contacted_at",
+]
+
+
+# Declared before /{contact_id}, which would otherwise try to read "export" as an ID.
+@router.get(
+    "/export",
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}, "description": "The contacts as CSV"}},
+)
+def export_contacts(
+    session: SessionDep,
+    q: SearchQ = None,
+    company_id: int | None = None,
+    min_score: MinScore = None,
+) -> Response:
+    """Download the matching contacts as a CSV file (10,000 rows at most), sorted by name."""
+    query = _filtered(q, company_id, min_score).options(selectinload(Contact.company))
+    rows = session.scalars(query.order_by(*BY_NAME).limit(MAX_EXPORT_ROWS))
+
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(EXPORT_COLUMNS)
+    for c in rows:
+        last = c.last_contacted_at.isoformat() if c.last_contacted_at else ""
+        company = c.company.name if c.company else ""
+        cells = [c.id, c.first_name, c.last_name, c.email, c.phone, c.role, company, c.score, last]
+        writer.writerow(["" if cell is None else cell for cell in cells])
+    return Response(
+        out.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="leadpilot-contacts.csv"'},
     )
 
 
