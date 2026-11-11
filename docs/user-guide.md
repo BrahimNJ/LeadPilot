@@ -39,6 +39,11 @@ Find them again:
 | See my best leads first | `GET /contacts?sort=score` |
 | Keep only hot leads | `GET /contacts?min_score=70` |
 
+To work on your contacts in a spreadsheet, `GET /contacts/export` downloads them as a CSV file.
+It takes the same `q`, `company_id` and `min_score` filters as the list, and returns 10,000
+rows at most. Text that a spreadsheet would run as a formula, such as `=SUM(A1)`, is
+prefixed with `'` so it shows as plain text.
+
 Lists come back as a page: `items`, `total`, `limit` (20 by default, 100 at most) and `offset`.
 
 Deleting a company keeps its contacts and unlinks them. Deleting a contact also deletes their
@@ -88,6 +93,8 @@ curl -X POST localhost:8000/contacts/1/activities -H "content-type: application/
 ```
 
 `GET /contacts/1/activities` returns the timeline, newest first.
+`DELETE /contacts/1/activities/8` removes an activity logged by mistake; the contact's
+`last_contacted_at` goes back to the most recent activity left.
 
 To log something that happened earlier, add `occurred_at` with a timezone, such as
 `"2026-11-02T14:30:00+01:00"`. The contact's `last_contacted_at` only moves forward, so
