@@ -31,10 +31,12 @@ gcloud services enable run.googleapis.com sqladmin.googleapis.com \
 gcloud sql instances create leadpilot-db \
   --database-version=POSTGRES_17 --edition=ENTERPRISE --tier=db-f1-micro --region="$REGION"
 gcloud sql databases create leadpilot --instance=leadpilot-db
-gcloud sql users create leadpilot --instance=leadpilot-db --password="$(openssl rand -base64 24)"
+DB_PASSWORD="$(openssl rand -hex 24)"
+gcloud sql users create leadpilot --instance=leadpilot-db --password="$DB_PASSWORD"
 ```
 
-Keep the password you generated: it goes into the connection string below.
+The password goes into the connection string below. It is hexadecimal on purpose: a base64
+password can contain `/`, `+` or `=`, which break a database URL.
 
 ## 2. Secrets
 
@@ -42,7 +44,7 @@ Cloud Run reaches Cloud SQL through a Unix socket mounted under `/cloudsql`:
 
 ```bash
 INSTANCE="$PROJECT_ID:$REGION:leadpilot-db"
-printf 'postgresql+psycopg://leadpilot:PASSWORD@/leadpilot?host=/cloudsql/%s' "$INSTANCE" \
+printf 'postgresql+psycopg://leadpilot:%s@/leadpilot?host=/cloudsql/%s' "$DB_PASSWORD" "$INSTANCE" \
   | gcloud secrets create database-url --data-file=-
 printf '%s' "$ANTHROPIC_API_KEY" | gcloud secrets create anthropic-api-key --data-file=-
 ```
