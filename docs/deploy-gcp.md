@@ -90,7 +90,7 @@ call it with an identity token.
 ```bash
 URL="$(gcloud run services describe leadpilot --region="$REGION" --format='value(status.url)')"
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$URL/health"
-# {"status":"ok","version":"0.3.0","database":"ok"}
+# {"status":"ok","version":"0.4.0","database":"ok"}
 ```
 
 ## Costs
