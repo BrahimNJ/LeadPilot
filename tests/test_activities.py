@@ -56,3 +56,37 @@ def test_activity_kind_and_timezone_are_validated(client, contact):
 
 def test_unknown_contact_returns_404(client):
     assert client.get("/contacts/999/activities").status_code == 404
+
+
+def test_deleting_the_latest_activity_moves_last_contacted_back(client, contact):
+    log(client, contact, subject="Old call", occurred_at="2026-09-01T08:00:00Z")
+    latest = log(client, contact, subject="Wrong contact", occurred_at="2026-10-08T14:30:00Z")
+
+    url = f"/contacts/{contact['id']}/activities/{latest['id']}"
+    assert client.delete(url).status_code == 204
+
+    timeline = client.get(f"/contacts/{contact['id']}/activities").json()
+    assert [a["subject"] for a in timeline["items"]] == ["Old call"]
+    refreshed = client.get(f"/contacts/{contact['id']}").json()
+    assert refreshed["last_contacted_at"].startswith("2026-09-01T08:00")
+    assert client.delete(url).status_code == 404
+
+
+def test_deleting_the_only_activity_clears_last_contacted(client, contact):
+    only = log(client, contact)
+
+    client.delete(f"/contacts/{contact['id']}/activities/{only['id']}")
+
+    assert client.get(f"/contacts/{contact['id']}").json()["last_contacted_at"] is None
+
+
+def test_an_activity_cannot_be_deleted_through_another_contact(client, contact):
+    other = client.post(
+        "/contacts", json={"first_name": "Ines", "last_name": "Roy", "email": "ines@example.com"}
+    ).json()
+    activity = log(client, contact)
+
+    response = client.delete(f"/contacts/{other['id']}/activities/{activity['id']}")
+
+    assert response.status_code == 404
+    assert client.get(f"/contacts/{contact['id']}/activities").json()["total"] == 1
