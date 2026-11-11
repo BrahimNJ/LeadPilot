@@ -1,13 +1,37 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import Select, func, or_, select
 
 from app.models import Company, Contact
 from app.routers.deps import PaginationDep, SessionDep, commit_or_409, contains, get_or_404
 from app.schemas import ContactIn, ContactOut, Page
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
+
+SearchQ = Annotated[str | None, Query(max_length=100, description="Search in names and email")]
+MinScore = Annotated[
+    int | None, Query(ge=0, le=100, description="Only contacts the copilot scored at least this")
+]
+BY_NAME = (Contact.last_name, Contact.first_name, Contact.id)
+
+
+def _filtered(q: str | None, company_id: int | None, min_score: int | None) -> Select[Contact]:
+    """The contacts matching the filters shared by the list and the export."""
+    query = select(Contact)
+    if q:
+        query = query.where(
+            or_(
+                contains(Contact.first_name, q),
+                contains(Contact.last_name, q),
+                contains(Contact.email, q),
+            )
+        )
+    if company_id is not None:
+        query = query.where(Contact.company_id == company_id)
+    if min_score is not None:
+        query = query.where(Contact.score >= min_score)
+    return query
 
 
 def _check_company(session: SessionDep, company_id: int | None) -> None:
@@ -35,32 +59,17 @@ def create_contact(payload: ContactIn, session: SessionDep) -> ContactOut:
 def list_contacts(
     session: SessionDep,
     page: PaginationDep,
-    q: str | None = Query(default=None, max_length=100, description="Search in names and email"),
+    q: SearchQ = None,
     company_id: int | None = None,
     sort: Literal["name", "score"] = Query(
         default="name", description="`score`: best leads first, unscored contacts last"
     ),
-    min_score: int | None = Query(
-        default=None, ge=0, le=100, description="Only contacts the copilot scored at least this"
-    ),
+    min_score: MinScore = None,
 ) -> Page[ContactOut]:
-    query = select(Contact)
-    if q:
-        query = query.where(
-            or_(
-                contains(Contact.first_name, q),
-                contains(Contact.last_name, q),
-                contains(Contact.email, q),
-            )
-        )
-    if company_id is not None:
-        query = query.where(Contact.company_id == company_id)
-    if min_score is not None:
-        query = query.where(Contact.score >= min_score)
+    query = _filtered(q, company_id, min_score)
 
     total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    by_name = (Contact.last_name, Contact.first_name, Contact.id)
-    order = (Contact.score.desc().nulls_last(), *by_name) if sort == "score" else by_name
+    order = (Contact.score.desc().nulls_last(), *BY_NAME) if sort == "score" else BY_NAME
     rows = session.scalars(query.order_by(*order).limit(page.limit).offset(page.offset))
     return Page(
         items=[ContactOut.model_validate(c) for c in rows],
