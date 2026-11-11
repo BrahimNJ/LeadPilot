@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.models import Activity, Contact, utcnow
@@ -53,3 +53,20 @@ def timeline(contact_id: int, session: SessionDep, page: PaginationDep) -> Page[
         limit=page.limit,
         offset=page.offset,
     )
+
+
+@router.delete("/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_activity(contact_id: int, activity_id: int, session: SessionDep) -> None:
+    contact = get_or_404(session, Contact, contact_id)
+    activity = session.get(Activity, activity_id)
+    # An activity of another contact is reported as missing, not deleted through this URL.
+    if activity is None or activity.contact_id != contact.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"activity {activity_id} not found")
+
+    session.delete(activity)
+    session.flush()
+    # Last contact = the most recent activity left, or none.
+    contact.last_contacted_at = session.scalar(
+        select(func.max(Activity.occurred_at)).where(Activity.contact_id == contact.id)
+    )
+    session.commit()
