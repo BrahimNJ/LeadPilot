@@ -83,6 +83,17 @@ def list_contacts(
 
 
 MAX_EXPORT_ROWS = 10_000
+# A cell starting with one of these runs as a formula when the file is opened in a spreadsheet.
+_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value: object) -> object:
+    """Make text that a spreadsheet would run as a formula display as plain text instead."""
+    if isinstance(value, str) and value.startswith(_FORMULA_STARTS):
+        return "'" + value
+    return value
+
+
 EXPORT_COLUMNS = [
     "id",
     "first_name",
@@ -119,7 +130,7 @@ def export_contacts(
         last = c.last_contacted_at.isoformat() if c.last_contacted_at else ""
         company = c.company.name if c.company else ""
         cells = [c.id, c.first_name, c.last_name, c.email, c.phone, c.role, company, c.score, last]
-        writer.writerow(["" if cell is None else cell for cell in cells])
+        writer.writerow(["" if cell is None else _safe_cell(cell) for cell in cells])
     return Response(
         out.getvalue(),
         media_type="text/csv; charset=utf-8",
