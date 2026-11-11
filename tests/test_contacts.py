@@ -1,3 +1,6 @@
+import csv
+import io
+
 from app.models import Contact
 
 
@@ -183,3 +186,39 @@ def test_contacts_sorted_by_score_put_unscored_last(client, session):
 
     assert [c["last_name"] for c in page["items"]] == ["High", "Low", "Aaa"]
     assert client.get("/contacts", params={"sort": "age"}).status_code == 422
+
+
+def test_export_contacts_as_csv(client, session):
+    company = make_company(client)
+    sarah = make_contact(
+        client,
+        first_name="Sarah",
+        last_name="Klein",
+        email="sarah@example.com",
+        role="CTO",
+        company_id=company["id"],
+    )
+    make_contact(client, first_name="Leo", last_name="Adam", email="leo@example.com")
+    session.get(Contact, sarah["id"]).score = 80
+    session.commit()
+
+    response = client.get("/contacts/export")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "leadpilot-contacts.csv" in response.headers["content-disposition"]
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+    assert [r["last_name"] for r in rows] == ["Adam", "Klein"]
+    assert rows[1]["company"] == "Acme"
+    assert rows[1]["score"] == "80"
+    assert rows[0]["score"] == ""
+
+
+def test_export_uses_the_list_filters(client):
+    make_contact(client, first_name="Sarah", last_name="Klein", email="sarah@example.com")
+    make_contact(client, first_name="Leo", last_name="Adam", email="leo@example.com")
+
+    response = client.get("/contacts/export", params={"q": "klein"})
+
+    rows = list(csv.DictReader(io.StringIO(response.text)))
+    assert [r["email"] for r in rows] == ["sarah@example.com"]
