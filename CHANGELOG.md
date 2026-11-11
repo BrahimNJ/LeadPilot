@@ -4,10 +4,12 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-11-11
 
 ### Added
 
+- `DELETE /contacts/{id}/activities/{activity_id}` removes an activity logged by mistake (#46)
+- `GET /contacts/export` downloads contacts as CSV, with the list filters (#46)
 - `GET /deals?overdue=true` lists open deals past their expected close date (#43)
 - CI runs the test suite on PostgreSQL 17 too, through `TEST_DATABASE_URL` (#41)
 
@@ -15,6 +17,11 @@ All notable changes to LeadPilot. The format follows
 
 - Faster cold starts: the Anthropic SDK is only loaded when an API key is set, and the
   deployment uses startup CPU boost. The demo went from 18 s to 4.5 s (#39)
+- CI uses `actions/checkout` and `actions/setup-python` v7
+
+### Security
+
+- The CSV export prefixes text that a spreadsheet would run as a formula (#46)
 
 ## [0.3.0] - 2026-11-09
 
@@ -61,6 +68,7 @@ First release: companies, contacts, a forward-only deals pipeline, an activity t
 and a Claude copilot for lead scoring, relationship summaries and follow-up drafts, with
 an offline fallback. Container image and Cloud Run deployment guide.
 
+[0.4.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/BrahimNJ/LeadPilot/releases/tag/v0.1.0
