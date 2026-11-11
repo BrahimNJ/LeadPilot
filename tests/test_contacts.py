@@ -222,3 +222,20 @@ def test_export_uses_the_list_filters(client):
 
     rows = list(csv.DictReader(io.StringIO(response.text)))
     assert [r["email"] for r in rows] == ["sarah@example.com"]
+
+
+def test_export_turns_spreadsheet_formulas_into_plain_text(client):
+    make_contact(
+        client,
+        first_name='=HYPERLINK("http://evil.example")',
+        last_name="-2+3",
+        email="formula@example.com",
+        role="@SUM(A1)",
+    )
+
+    rows = list(csv.DictReader(io.StringIO(client.get("/contacts/export").text)))
+
+    assert rows[0]["first_name"] == '\'=HYPERLINK("http://evil.example")'
+    assert rows[0]["last_name"] == "'-2+3"
+    assert rows[0]["role"] == "'@SUM(A1)"
+    assert rows[0]["email"] == "formula@example.com"
