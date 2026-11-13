@@ -83,6 +83,10 @@ value of deals in each stage.
 `GET /deals?overdue=true` keeps the open deals whose expected close date has passed: the ones
 to update or chase. Deals without a date never count as overdue.
 
+`GET /deals/export` downloads the deals as CSV, newest first, with the same `stage`,
+`contact_id` and `overdue` filters. Like the contact export, it returns 10,000 rows at most
+and neutralises spreadsheet formulas.
+
 ## The activity timeline
 
 Log what happens with a contact. The kind is `note`, `call`, `email` or `meeting`:
@@ -92,7 +96,8 @@ curl -X POST localhost:8000/contacts/1/activities -H "content-type: application/
   -d '{"kind": "call", "subject": "Budget check", "body": "Approval expected next quarter."}'
 ```
 
-`GET /contacts/1/activities` returns the timeline, newest first.
+`GET /contacts/1/activities` returns the timeline, newest first. Add `?kind=call` (or `note`,
+`email`, `meeting`) to see only one kind.
 `DELETE /contacts/1/activities/8` removes an activity logged by mistake; the contact's
 `last_contacted_at` goes back to the most recent activity left.
 
