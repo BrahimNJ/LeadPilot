@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.models import Activity, Contact, utcnow
-from app.routers.deps import PaginationDep, SessionDep, get_or_404
+from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
 from app.schemas import ActivityIn, ActivityOut, Page
 
 router = APIRouter(prefix="/contacts/{contact_id}/activities", tags=["activities"])
@@ -41,18 +41,8 @@ def timeline(contact_id: int, session: SessionDep, page: PaginationDep) -> Page[
     get_or_404(session, Contact, contact_id)
     query = select(Activity).where(Activity.contact_id == contact_id)
 
-    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = session.scalars(
-        query.order_by(Activity.occurred_at.desc(), Activity.id.desc())
-        .limit(page.limit)
-        .offset(page.offset)
-    )
-    return Page(
-        items=[ActivityOut.model_validate(a) for a in rows],
-        total=total,
-        limit=page.limit,
-        offset=page.offset,
-    )
+    order = (Activity.occurred_at.desc(), Activity.id.desc())
+    return paginate(session, query, page, ActivityOut, *order)
 
 
 @router.delete("/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
