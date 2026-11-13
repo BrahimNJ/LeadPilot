@@ -1,11 +1,13 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import ColumnElement, func
+from pydantic import BaseModel
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from app.db import Base, get_session
+from app.schemas import Page
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -21,6 +23,24 @@ class Pagination:
 
 
 PaginationDep = Annotated[Pagination, Depends()]
+
+
+def paginate[T: BaseModel](
+    session: Session,
+    query: Select[Any],
+    page: Pagination,
+    out: type[T],
+    *order_by: Any,
+) -> Page[T]:
+    """Run `query` for one page, in a stable order, and count every match."""
+    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
+    rows = session.scalars(query.order_by(*order_by).limit(page.limit).offset(page.offset))
+    return Page(
+        items=[out.model_validate(row) for row in rows],
+        total=total,
+        limit=page.limit,
+        offset=page.offset,
+    )
 
 
 def contains(
