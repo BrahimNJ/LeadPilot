@@ -90,3 +90,16 @@ def test_an_activity_cannot_be_deleted_through_another_contact(client, contact):
 
     assert response.status_code == 404
     assert client.get(f"/contacts/{contact['id']}/activities").json()["total"] == 1
+
+
+def test_timeline_filtered_by_kind(client, contact):
+    log(client, contact, kind="call", subject="Intro call")
+    log(client, contact, kind="email", subject="Deck sent")
+    log(client, contact, kind="call", subject="Follow-up call")
+
+    calls = client.get(f"/contacts/{contact['id']}/activities", params={"kind": "call"}).json()
+
+    assert calls["total"] == 2
+    assert {a["subject"] for a in calls["items"]} == {"Intro call", "Follow-up call"}
+    bad = client.get(f"/contacts/{contact['id']}/activities", params={"kind": "fax"})
+    assert bad.status_code == 422
