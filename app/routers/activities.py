@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 
 from app.models import Activity, Contact, utcnow
 from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
-from app.schemas import ActivityIn, ActivityOut, Page
+from app.schemas import ActivityIn, ActivityKind, ActivityOut, Page
 
 router = APIRouter(prefix="/contacts/{contact_id}/activities", tags=["activities"])
 
@@ -37,9 +37,16 @@ def log_activity(contact_id: int, payload: ActivityIn, session: SessionDep) -> A
 
 
 @router.get("")
-def timeline(contact_id: int, session: SessionDep, page: PaginationDep) -> Page[ActivityOut]:
+def timeline(
+    contact_id: int,
+    session: SessionDep,
+    page: PaginationDep,
+    kind: ActivityKind | None = None,
+) -> Page[ActivityOut]:
     get_or_404(session, Contact, contact_id)
     query = select(Activity).where(Activity.contact_id == contact_id)
+    if kind is not None:
+        query = query.where(Activity.kind == kind)
 
     order = (Activity.occurred_at.desc(), Activity.id.desc())
     return paginate(session, query, page, ActivityOut, *order)
