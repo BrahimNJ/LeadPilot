@@ -1,12 +1,36 @@
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from typing import Annotated
 
+from fastapi import APIRouter, HTTPException, Query, Response, status
+from sqlalchemy import Select, func, select
+from sqlalchemy.orm import selectinload
+
+from app.csv_export import MAX_EXPORT_ROWS, csv_response
 from app.domain.pipeline import CLOSED_STAGES, Stage, TransitionError, check_transition
 from app.models import Contact, Deal, utcnow
 from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
 from app.schemas import DealIn, DealOut, Page, PipelineStage, StageChange
 
 router = APIRouter(prefix="/deals", tags=["deals"])
+
+
+OverdueQ = Annotated[
+    bool, Query(description="Only open deals whose expected close date has passed")
+]
+NEWEST_FIRST = (Deal.created_at.desc(), Deal.id.desc())
+
+
+def _filtered(stage: Stage | None, contact_id: int | None, overdue: bool) -> Select[Deal]:
+    """The deals matching the filters shared by the list and the export."""
+    query = select(Deal)
+    if stage is not None:
+        query = query.where(Deal.stage == stage)
+    if contact_id is not None:
+        query = query.where(Deal.contact_id == contact_id)
+    if overdue:
+        query = query.where(
+            Deal.stage.not_in(list(CLOSED_STAGES)), Deal.expected_close < utcnow().date()
+        )
+    return query
 
 
 def _check_contact(session: SessionDep, contact_id: int) -> None:
@@ -32,21 +56,10 @@ def list_deals(
     page: PaginationDep,
     stage: Stage | None = None,
     contact_id: int | None = None,
-    overdue: bool = Query(
-        default=False, description="Only open deals whose expected close date has passed"
-    ),
+    overdue: OverdueQ = False,
 ) -> Page[DealOut]:
-    query = select(Deal)
-    if overdue:
-        query = query.where(
-            Deal.stage.not_in(list(CLOSED_STAGES)), Deal.expected_close < utcnow().date()
-        )
-    if stage is not None:
-        query = query.where(Deal.stage == stage)
-    if contact_id is not None:
-        query = query.where(Deal.contact_id == contact_id)
-
-    return paginate(session, query, page, DealOut, Deal.created_at.desc(), Deal.id.desc())
+    query = _filtered(stage, contact_id, overdue)
+    return paginate(session, query, page, DealOut, *NEWEST_FIRST)
 
 
 @router.get("/pipeline")
@@ -62,6 +75,37 @@ def pipeline_summary(session: SessionDep) -> list[PipelineStage]:
         count, amount = found.get(stage, (0, 0))
         summary.append(PipelineStage(stage=stage, deals=count, amount=amount))
     return summary
+
+
+# Declared before /{deal_id}, which would otherwise try to read "export" as an ID.
+@router.get(
+    "/export",
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}, "description": "The deals as CSV"}},
+)
+def export_deals(
+    session: SessionDep,
+    stage: Stage | None = None,
+    contact_id: int | None = None,
+    overdue: OverdueQ = False,
+) -> Response:
+    """Download the matching deals as a CSV file (10,000 rows at most), newest first."""
+    query = _filtered(stage, contact_id, overdue).options(selectinload(Deal.contact))
+    rows = session.scalars(query.order_by(*NEWEST_FIRST).limit(MAX_EXPORT_ROWS))
+    columns = ["id", "title", "amount", "stage", "expected_close", "contact", "contact_email"]
+    cells = (
+        [
+            d.id,
+            d.title,
+            d.amount,
+            d.stage,
+            d.expected_close.isoformat() if d.expected_close else None,
+            f"{d.contact.first_name} {d.contact.last_name}",
+            d.contact.email,
+        ]
+        for d in rows
+    )
+    return csv_response(columns, cells, "leadpilot-deals.csv")
 
 
 @router.get("/{deal_id}")
