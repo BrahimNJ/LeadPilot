@@ -3,11 +3,18 @@ import io
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.models import Company, Contact
-from app.routers.deps import PaginationDep, SessionDep, commit_or_409, contains, get_or_404
+from app.routers.deps import (
+    PaginationDep,
+    SessionDep,
+    commit_or_409,
+    contains,
+    get_or_404,
+    paginate,
+)
 from app.schemas import ContactIn, ContactOut, Page
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -71,15 +78,8 @@ def list_contacts(
 ) -> Page[ContactOut]:
     query = _filtered(q, company_id, min_score)
 
-    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
     order = (Contact.score.desc().nulls_last(), *BY_NAME) if sort == "score" else BY_NAME
-    rows = session.scalars(query.order_by(*order).limit(page.limit).offset(page.offset))
-    return Page(
-        items=[ContactOut.model_validate(c) for c in rows],
-        total=total,
-        limit=page.limit,
-        offset=page.offset,
-    )
+    return paginate(session, query, page, ContactOut, *order)
 
 
 MAX_EXPORT_ROWS = 10_000
