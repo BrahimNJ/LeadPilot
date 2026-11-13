@@ -1,3 +1,6 @@
+import csv
+import io
+
 import pytest
 
 
@@ -129,3 +132,22 @@ def test_overdue_lists_open_deals_past_their_close_date(client, contact):
 
     assert [d["id"] for d in page["items"]] == [late["id"]]
     assert client.get("/deals").json()["total"] == 4
+
+
+def test_export_deals_as_csv_with_filters(client, contact):
+    make_deal(client, contact, title="=cmd|' /C calc'!A0", amount=500)
+    late = make_deal(client, contact, title="Late", expected_close="2020-01-31")
+
+    everything = client.get("/deals/export")
+    overdue = client.get("/deals/export", params={"overdue": "true"})
+
+    assert everything.status_code == 200
+    assert everything.headers["content-type"].startswith("text/csv")
+    assert "leadpilot-deals.csv" in everything.headers["content-disposition"]
+    rows = list(csv.DictReader(io.StringIO(everything.text)))
+    assert [r["title"] for r in rows] == ["Late", "'=cmd|' /C calc'!A0"]
+    assert rows[0]["contact"] == "Nora Benali"
+    assert rows[0]["expected_close"] == "2020-01-31"
+    assert rows[1]["expected_close"] == ""
+    late_rows = list(csv.DictReader(io.StringIO(overdue.text)))
+    assert [int(r["id"]) for r in late_rows] == [late["id"]]
