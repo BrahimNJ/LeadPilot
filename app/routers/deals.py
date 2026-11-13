@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 
 from app.domain.pipeline import CLOSED_STAGES, Stage, TransitionError, check_transition
 from app.models import Contact, Deal, utcnow
-from app.routers.deps import PaginationDep, SessionDep, get_or_404
+from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
 from app.schemas import DealIn, DealOut, Page, PipelineStage, StageChange
 
 router = APIRouter(prefix="/deals", tags=["deals"])
@@ -46,16 +46,7 @@ def list_deals(
     if contact_id is not None:
         query = query.where(Deal.contact_id == contact_id)
 
-    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = session.scalars(
-        query.order_by(Deal.created_at.desc(), Deal.id.desc()).limit(page.limit).offset(page.offset)
-    )
-    return Page(
-        items=[DealOut.model_validate(d) for d in rows],
-        total=total,
-        limit=page.limit,
-        offset=page.offset,
-    )
+    return paginate(session, query, page, DealOut, Deal.created_at.desc(), Deal.id.desc())
 
 
 @router.get("/pipeline")
