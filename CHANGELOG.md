@@ -4,6 +4,18 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `GET /contacts/{id}/activities?kind=` filters the timeline by kind (#51)
+- `GET /deals/export` downloads deals as CSV, with the list filters (#51)
+
+### Changed
+
+- Every list endpoint shares one pagination helper; the company contacts list now has a
+  stable order for namesakes (#49)
+
 ## [0.4.0] - 2026-11-11
 
 ### Added
