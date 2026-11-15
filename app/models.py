@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.domain.pipeline import Stage
+from app.domain.tasks import DueStatus, due_status
 
 
 def utcnow() -> datetime:
@@ -48,6 +49,9 @@ class Contact(Base):
     activities: Mapped[list["Activity"]] = relationship(
         back_populates="contact", cascade="all, delete-orphan"
     )
+    tasks: Mapped[list["Task"]] = relationship(
+        back_populates="contact", cascade="all, delete-orphan"
+    )
 
 
 class Deal(Base):
@@ -79,3 +83,26 @@ class Activity(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     contact: Mapped[Contact] = relationship(back_populates="activities")
+
+
+class Task(Base):
+    """Something to do for a contact, such as a call back or a document to send."""
+
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contact_id: Mapped[int] = mapped_column(
+        ForeignKey("contacts.id", ondelete="CASCADE"), index=True
+    )
+    # Optional link to the deal the task moves forward; kept if the deal is deleted.
+    deal_id: Mapped[int | None] = mapped_column(ForeignKey("deals.id", ondelete="SET NULL"))
+    title: Mapped[str] = mapped_column(String(200))
+    due_date: Mapped[date | None] = mapped_column(Date, index=True)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    contact: Mapped[Contact] = relationship(back_populates="tasks")
+
+    @property
+    def status(self) -> DueStatus:
+        return due_status(self.due_date, self.done_at, utcnow().date())
