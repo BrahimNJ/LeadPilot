@@ -1,7 +1,10 @@
+from datetime import timedelta
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import select
 
-from app.models import Contact, Deal, Task
+from app.models import Contact, Deal, Task, utcnow
 from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
 from app.schemas import Page, TaskIn, TaskOut
 
@@ -54,3 +57,24 @@ def contact_tasks(
     if done is not None:
         query = query.where(Task.done_at.is_not(None) if done else Task.done_at.is_(None))
     return paginate(session, query, page, TaskOut, Task.done_at.is_not(None), *SOONEST_FIRST)
+
+
+@router.get("")
+def agenda(
+    session: SessionDep,
+    page: PaginationDep,
+    due: Literal["overdue", "today", "week"] | None = Query(
+        default=None, description="`week`: due today or in the next 6 days"
+    ),
+    done: bool = Query(default=False, description="true: done tasks instead of open ones"),
+) -> Page[TaskOut]:
+    """Tasks across every contact, soonest first: what to do today, this week, or late."""
+    today = utcnow().date()
+    query = select(Task).where(Task.done_at.is_not(None) if done else Task.done_at.is_(None))
+    if due == "overdue":
+        query = query.where(Task.due_date < today)
+    elif due == "today":
+        query = query.where(Task.due_date == today)
+    elif due == "week":
+        query = query.where(Task.due_date >= today, Task.due_date <= today + timedelta(days=6))
+    return paginate(session, query, page, TaskOut, *SOONEST_FIRST)
