@@ -28,3 +28,13 @@ def test_demo_seed_never_touches_existing_data(client, session):
 
     assert seed_demo(session) is False
     assert client.get("/companies").json()["total"] == 1
+
+
+def test_demo_tasks_fill_every_part_of_the_agenda(client, session):
+    seed_demo(session)
+
+    def count(**params):
+        return client.get("/tasks", params=params).json()["total"]
+
+    assert count() == 4
+    assert (count(due="overdue"), count(due="today"), count(done="true")) == (1, 1, 1)
