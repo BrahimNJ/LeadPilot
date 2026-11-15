@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field
 
 from app.domain.pipeline import Stage
+from app.domain.tasks import DueStatus
 
 ActivityKind = Literal["note", "call", "email", "meeting"]
 CompanySize = Literal["1-10", "11-50", "51-200", "201-1000", "1000+"]
@@ -93,3 +94,19 @@ class ActivityOut(BaseModel):
     subject: str
     body: str
     occurred_at: datetime
+
+
+class TaskIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200, examples=["Send the security questionnaire"])
+    due_date: date | None = Field(default=None, description="No date: the task is for someday")
+    deal_id: int | None = Field(default=None, description="A deal of the same contact")
+
+
+class TaskOut(TaskIn):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    contact_id: int
+    status: DueStatus
+    done_at: datetime | None
+    created_at: datetime
