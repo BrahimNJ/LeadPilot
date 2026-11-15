@@ -10,7 +10,7 @@ from app.ai.copilot import Copilot, CopilotError, CopilotRefused
 from app.ai.offline import OfflineCopilot
 from app.ai.schemas import FollowUpDraft, Insights, Language, ScoreResult
 from app.config import get_settings
-from app.models import Activity, Contact, Deal, utcnow
+from app.models import Activity, Contact, Deal, Task, utcnow
 from app.routers.deps import SessionDep, get_or_404
 
 router = APIRouter(prefix="/contacts/{contact_id}", tags=["copilot"])
@@ -43,7 +43,16 @@ def load_context(session: SessionDep, contact_id: int) -> ContactContext:
             .order_by(Activity.occurred_at.desc(), Activity.id.desc())
         )
     )
-    return ContactContext(contact=contact, deals=deals, activities=activities, now=utcnow())
+    tasks = list(
+        session.scalars(
+            select(Task)
+            .where(Task.contact_id == contact_id, Task.done_at.is_(None))
+            .order_by(Task.due_date.asc().nulls_last(), Task.id)
+        )
+    )
+    return ContactContext(
+        contact=contact, deals=deals, activities=activities, now=utcnow(), tasks=tasks
+    )
 
 
 def copilot_http_error(exc: CopilotError) -> HTTPException:

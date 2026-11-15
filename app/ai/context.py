@@ -5,10 +5,10 @@ Keeping this in one function makes it easy to see (and test) exactly what
 leaves the CRM.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from app.models import Activity, Contact, Deal
+from app.models import Activity, Contact, Deal, Task
 
 MAX_ACTIVITIES = 50
 
@@ -19,6 +19,7 @@ class ContactContext:
     deals: list[Deal]
     activities: list[Activity]  # newest first
     now: datetime
+    tasks: list[Task] = field(default_factory=list)  # open ones, soonest first
 
 
 def render(ctx: ContactContext) -> str:
@@ -39,6 +40,12 @@ def render(ctx: ContactContext) -> str:
     for deal in ctx.deals:
         close = f", expected close {deal.expected_close}" if deal.expected_close else ""
         lines.append(f"- {deal.title}: {deal.amount} EUR, stage {deal.stage}{close}")
+
+    lines.append("")
+    lines.append("Open tasks:" if ctx.tasks else "Open tasks: none")
+    for task in ctx.tasks:
+        due = f", due {task.due_date}" if task.due_date else ""
+        lines.append(f"- {task.title}{due}")
 
     shown = ctx.activities[:MAX_ACTIVITIES]
     lines.append("")
