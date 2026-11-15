@@ -94,3 +94,18 @@ def test_agenda_filters_by_due_date_across_contacts(client, contact):
     assert titles(due="week") == ["Today", "In 6 days"]
     assert titles(done="true") == []
     assert client.get("/tasks", params={"due": "tomorrow"}).status_code == 422
+
+
+def test_complete_and_reopen_a_task(client, contact):
+    task = add_task(client, contact, due_date=in_days(-1))
+
+    done = client.post(f"/tasks/{task['id']}/complete").json()
+    again = client.post(f"/tasks/{task['id']}/complete").json()
+    reopened = client.post(f"/tasks/{task['id']}/reopen").json()
+
+    assert done["status"] == "done"
+    assert done["done_at"] is not None
+    assert again["done_at"] == done["done_at"]
+    assert reopened["status"] == "overdue"
+    assert reopened["done_at"] is None
+    assert client.post("/tasks/999/complete").status_code == 404
