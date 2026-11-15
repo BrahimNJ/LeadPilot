@@ -55,3 +55,21 @@ def test_task_deal_must_belong_to_the_same_contact(client, contact):
 
     assert refused.status_code == 422
     assert add_task(client, contact, deal_id=our_deal["id"])["deal_id"] == our_deal["id"]
+
+
+def test_contact_tasks_list_open_ones_first_soonest_first(client, contact, session):
+    from app.models import Task
+
+    later = add_task(client, contact, title="Later", due_date=in_days(5))
+    someday = add_task(client, contact, title="Someday")
+    soon = add_task(client, contact, title="Soon", due_date=in_days(1))
+    done = add_task(client, contact, title="Done", due_date=in_days(-2))
+    session.get(Task, done["id"]).done_at = datetime.now(UTC)
+    session.commit()
+
+    page = client.get(f"/contacts/{contact['id']}/tasks").json()
+    open_only = client.get(f"/contacts/{contact['id']}/tasks", params={"done": "false"}).json()
+
+    assert [t["title"] for t in page["items"]] == ["Soon", "Later", "Someday", "Done"]
+    assert {t["id"] for t in open_only["items"]} == {later["id"], someday["id"], soon["id"]}
+    assert client.get("/contacts/999/tasks").status_code == 404
