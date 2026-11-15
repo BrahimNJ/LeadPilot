@@ -105,6 +105,34 @@ To log something that happened earlier, add `occurred_at` with a timezone, such 
 `"2026-11-02T14:30:00+01:00"`. The contact's `last_contacted_at` only moves forward, so
 logging an old call doesn't make the contact look recently touched.
 
+## Follow-up tasks
+
+A task is something to do for a contact: a call back, a document to send. Give it a due date,
+or none for someday, and optionally link it to one of the contact's deals:
+
+```bash
+curl -X POST localhost:8000/contacts/1/tasks -H "content-type: application/json" \
+  -d '{"title": "Send the security questionnaire answers", "due_date": "2026-11-20", "deal_id": 1}'
+```
+
+Each task comes back with a `status`: `overdue`, `today`, `upcoming`, `someday` or `done`.
+Days are counted in UTC.
+
+| I want to | Call |
+| --- | --- |
+| See a contact's tasks, open ones first | `GET /contacts/1/tasks` |
+| See everything late | `GET /tasks?due=overdue` |
+| Plan my day or my week | `GET /tasks?due=today`, `GET /tasks?due=week` |
+| Mark a task done, or undo it | `POST /tasks/1/complete`, `POST /tasks/1/reopen` |
+| Change or remove a task | `PUT /tasks/1`, `DELETE /tasks/1` |
+
+`GET /tasks` lists open tasks across all contacts, soonest first; add `done=true` for the
+finished ones. Deleting a contact deletes their tasks; deleting a deal keeps its tasks and
+unlinks them. `/stats` counts the open and overdue tasks.
+
+The copilot reads a contact's open tasks. With the offline rules, the next task becomes the
+suggested next action in `/insights`.
+
 ## The copilot
 
 The copilot reads one contact at a time: their details, company, deals and activities.
