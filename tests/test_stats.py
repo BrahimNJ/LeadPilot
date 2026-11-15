@@ -26,3 +26,18 @@ def test_stats_sum_open_deals_and_compute_the_win_rate(client, session):
     assert stats["open_pipeline_amount"] == 15000 + 8000 + 42000
     assert (stats["won_deals"], stats["lost_deals"]) == (1, 1)
     assert stats["win_rate"] == 0.5
+
+
+def test_stats_count_open_and_overdue_tasks(client):
+    contact = client.post(
+        "/contacts", json={"first_name": "A", "last_name": "B", "email": "ab@example.com"}
+    ).json()
+    url = f"/contacts/{contact['id']}/tasks"
+    client.post(url, json={"title": "Late", "due_date": "2020-01-01"})
+    client.post(url, json={"title": "Someday"})
+    done = client.post(url, json={"title": "Late but done", "due_date": "2020-01-01"}).json()
+    client.post(f"/tasks/{done['id']}/complete")
+
+    stats = client.get("/stats").json()
+
+    assert (stats["open_tasks"], stats["overdue_tasks"]) == (2, 1)
