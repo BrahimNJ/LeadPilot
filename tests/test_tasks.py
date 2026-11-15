@@ -73,3 +73,24 @@ def test_contact_tasks_list_open_ones_first_soonest_first(client, contact, sessi
     assert [t["title"] for t in page["items"]] == ["Soon", "Later", "Someday", "Done"]
     assert {t["id"] for t in open_only["items"]} == {later["id"], someday["id"], soon["id"]}
     assert client.get("/contacts/999/tasks").status_code == 404
+
+
+def test_agenda_filters_by_due_date_across_contacts(client, contact):
+    other = client.post(
+        "/contacts", json={"first_name": "Tom", "last_name": "Weiss", "email": "tom@example.com"}
+    ).json()
+    add_task(client, contact, title="Late", due_date=in_days(-1))
+    add_task(client, other, title="Today", due_date=in_days(0))
+    add_task(client, contact, title="In 6 days", due_date=in_days(6))
+    add_task(client, other, title="In 7 days", due_date=in_days(7))
+    add_task(client, contact, title="Someday")
+
+    def titles(**params):
+        return [t["title"] for t in client.get("/tasks", params=params).json()["items"]]
+
+    assert titles() == ["Late", "Today", "In 6 days", "In 7 days", "Someday"]
+    assert titles(due="overdue") == ["Late"]
+    assert titles(due="today") == ["Today"]
+    assert titles(due="week") == ["Today", "In 6 days"]
+    assert titles(done="true") == []
+    assert client.get("/tasks", params={"due": "tomorrow"}).status_code == 422
