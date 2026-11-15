@@ -109,3 +109,20 @@ def test_complete_and_reopen_a_task(client, contact):
     assert reopened["status"] == "overdue"
     assert reopened["done_at"] is None
     assert client.post("/tasks/999/complete").status_code == 404
+
+
+def test_edit_and_delete_a_task(client, contact):
+    task = add_task(client, contact)
+
+    edited = client.put(
+        f"/tasks/{task['id']}", json={"title": "Send the revised proposal", "due_date": in_days(0)}
+    ).json()
+
+    assert edited["title"] == "Send the revised proposal"
+    assert edited["status"] == "today"
+    assert client.get(f"/tasks/{task['id']}").json() == edited
+    assert (
+        client.put(f"/tasks/{task['id']}", json={"title": "x", "deal_id": 999}).status_code == 422
+    )
+    assert client.delete(f"/tasks/{task['id']}").status_code == 204
+    assert client.get(f"/tasks/{task['id']}").status_code == 404
