@@ -50,6 +50,15 @@ class OfflineCopilot:
         return ScoreResult(lead=lead, model=MODEL_NAME)
 
     def insights(self, ctx: ContactContext) -> Insights:
+        result = self._insights(ctx)
+        # A task the salesperson already planned beats a generic suggestion.
+        if ctx.tasks:
+            task = ctx.tasks[0]
+            due = f" (due {task.due_date})" if task.due_date else ""
+            result.next_action = f"{task.title}{due}"
+        return result
+
+    def _insights(self, ctx: ContactContext) -> Insights:
         c = ctx.contact
         if not ctx.activities:
             return Insights(
