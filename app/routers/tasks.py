@@ -94,3 +94,24 @@ def reopen_task(task_id: int, session: SessionDep) -> TaskOut:
     task = get_or_404(session, Task, task_id)
     task.done_at = None
     return _save(session, task)
+
+
+@router.get("/{task_id}")
+def get_task(task_id: int, session: SessionDep) -> TaskOut:
+    return TaskOut.model_validate(get_or_404(session, Task, task_id))
+
+
+@router.put("/{task_id}")
+def update_task(task_id: int, payload: TaskIn, session: SessionDep) -> TaskOut:
+    """Change the title, due date or deal. Completion has its own endpoints."""
+    task = get_or_404(session, Task, task_id)
+    _check_deal(session, payload.deal_id, task.contact_id)
+    for field, value in payload.model_dump().items():
+        setattr(task, field, value)
+    return _save(session, task)
+
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int, session: SessionDep) -> None:
+    session.delete(get_or_404(session, Task, task_id))
+    session.commit()
