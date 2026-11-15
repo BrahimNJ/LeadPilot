@@ -8,6 +8,10 @@ All notable changes to LeadPilot. The format follows
 
 ### Added
 
+- Follow-up tasks: create them on a contact, optionally linked to a deal; list them per
+  contact or in an agenda (`overdue`, `today`, `week`); complete, reopen, edit and delete
+  them. `/stats` counts open and overdue tasks, the copilot reads open tasks, and the demo
+  data includes some (#53)
 - `GET /contacts/{id}/activities?kind=` filters the timeline by kind (#51)
 - `GET /deals/export` downloads deals as CSV, with the list filters (#51)
 
