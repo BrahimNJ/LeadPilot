@@ -78,3 +78,19 @@ def agenda(
     elif due == "week":
         query = query.where(Task.due_date >= today, Task.due_date <= today + timedelta(days=6))
     return paginate(session, query, page, TaskOut, *SOONEST_FIRST)
+
+
+@router.post("/{task_id}/complete")
+def complete_task(task_id: int, session: SessionDep) -> TaskOut:
+    task = get_or_404(session, Task, task_id)
+    # Completing twice keeps the first completion time.
+    if task.done_at is None:
+        task.done_at = utcnow()
+    return _save(session, task)
+
+
+@router.post("/{task_id}/reopen")
+def reopen_task(task_id: int, session: SessionDep) -> TaskOut:
+    task = get_or_404(session, Task, task_id)
+    task.done_at = None
+    return _save(session, task)
