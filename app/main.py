@@ -18,7 +18,7 @@ from app.middleware import (
     request_id_middleware,
     security_headers_middleware,
 )
-from app.routers import activities, companies, contacts, copilot, deals, health, stats
+from app.routers import activities, companies, contacts, copilot, deals, health, stats, tasks
 
 
 @asynccontextmanager
@@ -79,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(activities.router)
     app.include_router(copilot.router)
     app.include_router(stats.router)
+    app.include_router(tasks.contact_router)
+    app.include_router(tasks.router)
     return app
 
 
