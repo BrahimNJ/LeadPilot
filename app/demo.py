@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.pipeline import CLOSED_STAGES, Stage
-from app.models import Activity, Company, Contact, Deal, utcnow
+from app.models import Activity, Company, Contact, Deal, Task, utcnow
 
 COMPANIES = [
     ("Kibo Logistics", "kibo.example.com", "Logistics", "201-1000"),
@@ -41,6 +41,16 @@ ACTIVITIES = [
     (3, "email", "Proposal sent", "Three options, from 30k to 50k.", 6),
     (3, "call", "Follow-up on the proposal", "Budget approval expected next quarter.", 1),
     (4, "call", "Intro call", "No budget this year.", 45),
+]
+
+
+# contact index, title, due in days (None: someday), done
+TASKS = [
+    (0, "Send the security questionnaire answers", 2, False),
+    (1, "Share a dashboard mock-up", -3, False),
+    (3, "Call back about budget approval", 0, False),
+    (2, "Schedule the kick-off", -10, True),
+    (4, "Check in again next year", None, False),
 ]
 
 
@@ -87,6 +97,16 @@ def seed_demo(session: Session) -> bool:
         times = [a.occurred_at for a in activities if a.contact is contact]
         contact.last_contacted_at = max(times, default=None)
 
-    session.add_all([*companies, *contacts, *deals, *activities])
+    tasks = [
+        Task(
+            contact=contacts[c],
+            title=title,
+            due_date=(now + timedelta(days=days)).date() if days is not None else None,
+            done_at=now - timedelta(days=9) if done else None,
+        )
+        for c, title, days, done in TASKS
+    ]
+
+    session.add_all([*companies, *contacts, *deals, *activities, *tasks])
     session.commit()
     return True
