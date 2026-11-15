@@ -139,3 +139,20 @@ def test_tasks_follow_their_contact_and_outlive_their_deal(client, contact):
 
     client.delete(f"/contacts/{contact['id']}")
     assert client.get(f"/tasks/{linked['id']}").status_code == 404
+
+
+def test_copilot_reads_open_tasks_and_suggests_the_next_one(client, contact, session):
+    from app.ai.context import render
+    from app.routers.copilot import load_context
+
+    add_task(client, contact, title="Call back about the budget", due_date=in_days(2))
+    add_task(client, contact, title="Send the case study", due_date=in_days(9))
+    done = add_task(client, contact, title="Already done")
+    client.post(f"/tasks/{done['id']}/complete")
+
+    record = render(load_context(session, contact["id"]))
+    insights = client.post(f"/contacts/{contact['id']}/insights").json()
+
+    assert f"- Call back about the budget, due {in_days(2)}" in record
+    assert "Already done" not in record
+    assert insights["next_action"] == f"Call back about the budget (due {in_days(2)})"
