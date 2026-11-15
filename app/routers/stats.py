@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.domain.pipeline import CLOSED_STAGES, Stage
-from app.models import Company, Contact, Deal
+from app.models import Company, Contact, Deal, Task, utcnow
 from app.routers.deps import SessionDep
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -17,6 +17,8 @@ class Stats(BaseModel):
     won_deals: int
     lost_deals: int
     win_rate: float | None
+    open_tasks: int
+    overdue_tasks: int
 
 
 @router.get("")
@@ -33,6 +35,8 @@ def overview(session: SessionDep) -> Stats:
     open_rows = [row for stage, row in deals.items() if Stage(stage) not in CLOSED_STAGES]
     won = deals.get(Stage.WON, (0, 0))[0]
     lost = deals.get(Stage.LOST, (0, 0))[0]
+    open_tasks = select(func.count()).select_from(Task).where(Task.done_at.is_(None))
+    overdue_tasks = open_tasks.where(Task.due_date < utcnow().date())
     return Stats(
         companies=session.scalar(select(func.count()).select_from(Company)) or 0,
         contacts=session.scalar(select(func.count()).select_from(Contact)) or 0,
@@ -41,4 +45,6 @@ def overview(session: SessionDep) -> Stats:
         won_deals=won,
         lost_deals=lost,
         win_rate=round(won / (won + lost), 2) if won + lost else None,
+        open_tasks=session.scalar(open_tasks) or 0,
+        overdue_tasks=session.scalar(overdue_tasks) or 0,
     )

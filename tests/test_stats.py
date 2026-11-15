@@ -10,6 +10,8 @@ def test_stats_on_an_empty_crm(client):
         "won_deals": 0,
         "lost_deals": 0,
         "win_rate": None,
+        "open_tasks": 0,
+        "overdue_tasks": 0,
     }
 
 
