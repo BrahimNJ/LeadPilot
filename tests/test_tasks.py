@@ -126,3 +126,16 @@ def test_edit_and_delete_a_task(client, contact):
     )
     assert client.delete(f"/tasks/{task['id']}").status_code == 204
     assert client.get(f"/tasks/{task['id']}").status_code == 404
+
+
+def test_tasks_follow_their_contact_and_outlive_their_deal(client, contact):
+    deal = client.post(
+        "/deals", json={"title": "Pilot", "amount": 100, "contact_id": contact["id"]}
+    ).json()
+    linked = add_task(client, contact, deal_id=deal["id"])
+
+    client.delete(f"/deals/{deal['id']}")
+    assert client.get(f"/tasks/{linked['id']}").json()["deal_id"] is None
+
+    client.delete(f"/contacts/{contact['id']}")
+    assert client.get(f"/tasks/{linked['id']}").status_code == 404
