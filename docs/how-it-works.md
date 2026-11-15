@@ -52,6 +52,8 @@ erDiagram
     COMPANY |o--o{ CONTACT : employs
     CONTACT ||--o{ DEAL : has
     CONTACT ||--o{ ACTIVITY : has
+    CONTACT ||--o{ TASK : has
+    DEAL |o--o{ TASK : "moves forward"
     COMPANY {
         string name
         string domain UK
@@ -79,10 +81,16 @@ erDiagram
         text body
         datetime occurred_at
     }
+    TASK {
+        string title
+        date due_date
+        datetime done_at
+    }
 ```
 
 Foreign keys carry the delete rules: a company's contacts are unlinked (`SET NULL`), a contact's
-deals and activities are removed (`CASCADE`). SQLite only applies these when asked to on each
+deals, activities and tasks are removed (`CASCADE`), and a deleted deal's tasks are unlinked
+(`SET NULL`). SQLite only applies these when asked to on each
 connection, which `build_engine` does.
 
 Amounts are whole euros: deal sizes are estimates, so cents would be false precision.

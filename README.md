@@ -28,6 +28,7 @@ app running when the AI is unavailable.
 - Sort and filter contacts by lead score to see the hottest leads first
 - A sales overview with the open pipeline value and the win rate
 - A timeline of notes, calls, emails and meetings for each contact
+- Follow-up tasks with due dates and a daily agenda of what is late, due today or this week
 - Lead scoring, relationship summaries and follow-up drafts powered by Claude
 - An offline mode: without an API key, a rules-based engine takes over, so the app runs anywhere
 - Hardened for public exposure: rate limit, body limits, security headers, safe error messages
