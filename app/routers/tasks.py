@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 
 from app.models import Contact, Deal, Task
-from app.routers.deps import SessionDep, get_or_404
-from app.schemas import TaskIn, TaskOut
+from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
+from app.schemas import Page, TaskIn, TaskOut
 
 # Tasks are created and listed under their contact, and handled on their own after that.
 contact_router = APIRouter(prefix="/contacts/{contact_id}/tasks", tags=["tasks"])
 router = APIRouter(prefix="/tasks", tags=["tasks"])
+
+
+# Open tasks first, the soonest at the top; tasks without a date after dated ones.
+SOONEST_FIRST = (Task.due_date.asc().nulls_last(), Task.id)
 
 
 def _check_deal(session: SessionDep, deal_id: int | None, contact_id: int) -> None:
@@ -33,3 +38,19 @@ def create_task(contact_id: int, payload: TaskIn, session: SessionDep) -> TaskOu
     task = Task(contact_id=contact.id, **payload.model_dump())
     session.add(task)
     return _save(session, task)
+
+
+@contact_router.get("")
+def contact_tasks(
+    contact_id: int,
+    session: SessionDep,
+    page: PaginationDep,
+    done: bool | None = Query(
+        default=None, description="true: done tasks only, false: open only, absent: both"
+    ),
+) -> Page[TaskOut]:
+    get_or_404(session, Contact, contact_id)
+    query = select(Task).where(Task.contact_id == contact_id)
+    if done is not None:
+        query = query.where(Task.done_at.is_not(None) if done else Task.done_at.is_(None))
+    return paginate(session, query, page, TaskOut, Task.done_at.is_not(None), *SOONEST_FIRST)
