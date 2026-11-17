@@ -107,7 +107,7 @@ app/
 ├── routers/     # HTTP endpoints
 ├── models.py    # database tables
 └── main.py      # application setup
-tests/           # 86 tests, no network needed
+tests/           # 105 tests, no network needed
 docs/            # user guide, how it works, configuration, deployment, decisions
 ```
 
