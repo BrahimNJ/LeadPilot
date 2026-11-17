@@ -4,7 +4,7 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-11-17
 
 ### Added
 
@@ -84,6 +84,7 @@ First release: companies, contacts, a forward-only deals pipeline, an activity t
 and a Claude copilot for lead scoring, relationship summaries and follow-up drafts, with
 an offline fallback. Container image and Cloud Run deployment guide.
 
+[0.5.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BrahimNJ/LeadPilot/compare/v0.1.0...v0.2.0
