@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.models import Contact, Deal, Task, utcnow
 from app.routers.deps import PaginationDep, SessionDep, get_or_404, paginate
-from app.schemas import Page, TaskIn, TaskOut
+from app.schemas import Page, Snooze, TaskIn, TaskOut
 
 # Tasks are created and listed under their contact, and handled on their own after that.
 contact_router = APIRouter(prefix="/contacts/{contact_id}/tasks", tags=["tasks"])
@@ -115,3 +115,17 @@ def update_task(task_id: int, payload: TaskIn, session: SessionDep) -> TaskOut:
 def delete_task(task_id: int, session: SessionDep) -> None:
     session.delete(get_or_404(session, Task, task_id))
     session.commit()
+
+
+@router.post("/{task_id}/snooze")
+def snooze_task(task_id: int, payload: Snooze, session: SessionDep) -> TaskOut:
+    """Push the due date back. A late or undated task counts from today, not from the past."""
+    task = get_or_404(session, Task, task_id)
+    if task.done_at is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "task is done: reopen it before snoozing"
+        )
+    today = utcnow().date()
+    start = max(task.due_date, today) if task.due_date else today
+    task.due_date = start + timedelta(days=payload.days)
+    return _save(session, task)
