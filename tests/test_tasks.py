@@ -156,3 +156,31 @@ def test_copilot_reads_open_tasks_and_suggests_the_next_one(client, contact, ses
     assert f"- Call back about the budget, due {in_days(2)}" in record
     assert "Already done" not in record
     assert insights["next_action"] == f"Call back about the budget (due {in_days(2)})"
+
+
+def test_snooze_pushes_the_due_date_back(client, contact):
+    upcoming = add_task(client, contact, due_date=in_days(3))
+    late = add_task(client, contact, due_date=in_days(-5))
+    undated = add_task(client, contact)
+
+    def snooze(task, days):
+        return client.post(f"/tasks/{task['id']}/snooze", json={"days": days})
+
+    assert snooze(upcoming, 2).json()["due_date"] == in_days(5)
+    # A late task restarts from today, so one snooze is enough to make it current.
+    snoozed = snooze(late, 1).json()
+    assert (snoozed["due_date"], snoozed["status"]) == (in_days(1), "upcoming")
+    assert snooze(undated, 7).json()["status"] == "upcoming"
+
+
+def test_snooze_refuses_done_tasks_and_odd_durations(client, contact):
+    task = add_task(client, contact)
+    url = f"/tasks/{task['id']}/snooze"
+
+    assert client.post(url, json={"days": 0}).status_code == 422
+    assert client.post(url, json={"days": 91}).status_code == 422
+    client.post(f"/tasks/{task['id']}/complete")
+    refused = client.post(url, json={"days": 1})
+    assert refused.status_code == 422
+    assert "reopen" in refused.json()["detail"]
+    assert client.post("/tasks/999/snooze", json={"days": 1}).status_code == 404
