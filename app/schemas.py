@@ -110,3 +110,7 @@ class TaskOut(TaskIn):
     status: DueStatus
     done_at: datetime | None
     created_at: datetime
+
+
+class Snooze(BaseModel):
+    days: int = Field(ge=1, le=90, description="How many days to push the task back")
