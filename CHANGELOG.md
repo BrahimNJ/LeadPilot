@@ -4,6 +4,13 @@ All notable changes to LeadPilot. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [semantic versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `POST /tasks/{id}/snooze` pushes a task back by 1 to 90 days, counting from today for a
+  late or undated task (#56)
+
 ## [0.5.0] - 2026-11-17
 
 ### Added
