@@ -124,7 +124,11 @@ Days are counted in UTC.
 | See everything late | `GET /tasks?due=overdue` |
 | Plan my day or my week | `GET /tasks?due=today`, `GET /tasks?due=week` |
 | Mark a task done, or undo it | `POST /tasks/1/complete`, `POST /tasks/1/reopen` |
+| Push a task back by a few days | `POST /tasks/1/snooze` with `{"days": 3}` |
 | Change or remove a task | `PUT /tasks/1`, `DELETE /tasks/1` |
+
+Snoozing counts from the due date, or from today for a late or undated task, so a late task
+never stays in the past. It takes 1 to 90 days, and a done task must be reopened first.
 
 `GET /tasks` lists open tasks across all contacts, soonest first; add `done=true` for the
 finished ones. Deleting a contact deletes their tasks; deleting a deal keeps its tasks and
