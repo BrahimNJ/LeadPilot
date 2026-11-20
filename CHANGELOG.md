@@ -8,6 +8,10 @@ All notable changes to LeadPilot. The format follows
 
 ### Added
 
+- An evaluation suite for the lead scoring copilot (`make eval`): 30 labelled synthetic
+  contacts and 8 prompt injection cases scored by the real model, compared with the
+  offline rules, with a markdown report of accuracy, stability, injection resistance,
+  latency and cost
 - `POST /tasks/{id}/snooze` pushes a task back by 1 to 90 days, counting from today for a
   late or undated task (#56)
 

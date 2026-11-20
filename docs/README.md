@@ -5,6 +5,7 @@
 | Use the API, step by step | [User guide](user-guide.md) |
 | Understand how it is built | [How it works](how-it-works.md) |
 | See every setting | [Configuration](configuration.md) |
+| Measure the quality of the AI scores | [Evaluation](evaluation.md) |
 | Deploy it | [Deployment on Cloud Run](deploy-gcp.md) |
 | Report a security problem | [Security policy](../SECURITY.md) |
 | Contribute | [Contributing guide](../CONTRIBUTING.md) |
