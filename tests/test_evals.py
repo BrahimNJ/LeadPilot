@@ -309,3 +309,7 @@ def test_report_says_the_claude_code_backend_is_an_approximation():
     assert "Backend: `claude-code, Claude Code 2.1.327`" in report
     assert "approximation of the production API path" in report
     assert "(API price equivalent)" in report
+
+
+def test_claude_code_version_keeps_the_number_only():
+    assert cli_copilot(FakeCli("2.1.327 (Claude Code)\n")).version() == "2.1.327"
