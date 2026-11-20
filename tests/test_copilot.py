@@ -187,3 +187,13 @@ def test_claude_follow_up_prompt_carries_language_and_goal():
     assert draft.subject == "Suivi"
     assert "in French" in prompt
     assert "Fix a date for the demo" in prompt
+
+
+def test_claude_copilot_keeps_the_token_usage_of_its_last_call():
+    answer = {"score": 50, "temperature": "warm", "reasons": [], "risks": []}
+    copilot = claude_with(lambda _: httpx2.Response(200, json=message(json.dumps(answer))))
+    assert copilot.last_usage is None
+
+    copilot.score_lead(context())
+
+    assert copilot.last_usage == (120, 40)

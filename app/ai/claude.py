@@ -57,6 +57,8 @@ class ClaudeCopilot:
         self._client = client
         self._model = model
         self._effort: Effort = effort
+        # (input, output) tokens of the latest call, read by the eval runner to price runs.
+        self.last_usage: tuple[int, int] | None = None
 
     def score_lead(self, ctx: ContactContext) -> ScoreResult:
         lead = self._ask(SCORING_TASK, ctx, LeadScore)
@@ -101,6 +103,7 @@ class ClaudeCopilot:
             log.error("copilot answer did not match %s: %s", output.__name__, exc)
             raise CopilotUnavailable("the AI answer could not be read") from exc
 
+        self.last_usage = (response.usage.input_tokens, response.usage.output_tokens)
         if response.stop_reason == "refusal":
             raise CopilotRefused("the AI provider declined to answer for this record")
         parsed = response.parsed_output
