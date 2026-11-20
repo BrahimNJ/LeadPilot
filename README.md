@@ -98,6 +98,19 @@ A few choices I made, explained in more detail in [ADR 0001](docs/adr/0001-copil
   message instead of crashing.
 - **A human decides.** Email drafts are only drafts: nothing is sent automatically.
 
+## Evaluation
+
+The tests prove the copilot works; the eval measures whether its scores are good. It runs
+the real model on 30 synthetic contacts with expected results and 8 prompt injection
+attacks, three times each, next to the offline rules as a baseline, and writes a report
+with accuracy, stability, injection resistance, latency and cost.
+
+```bash
+ANTHROPIC_API_KEY=... make eval
+```
+
+See [docs/evaluation.md](docs/evaluation.md) for the metrics, the datasets and the limits.
+
 ## Project structure
 
 ```text
@@ -107,7 +120,8 @@ app/
 ├── routers/     # HTTP endpoints
 ├── models.py    # database tables
 └── main.py      # application setup
-tests/           # 105 tests, no network needed
+evals/           # copilot evaluation: datasets, runner, metrics
+tests/           # 119 tests, no network needed
 docs/            # user guide, how it works, configuration, deployment, decisions
 ```
 
