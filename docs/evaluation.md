@@ -41,22 +41,59 @@ The names and companies are invented and every email uses `example.com`. Cases a
 the same `ContactContext` the API builds and sent through the same `render()` function, so the
 model receives exactly what production sends: no email address and no phone number.
 
+## Two backends
+
+The eval can reach Claude in two ways. The report always says which one was used.
+
+| Backend | How it calls Claude | Default | Runs per case |
+| --- | --- | --- | --- |
+| `api` | The Messages API through the Anthropic SDK, with `ANTHROPIC_API_KEY`: the production path, billed per token | When the key is set | 3 |
+| `claude-code` | The Claude Code CLI in headless mode (`claude -p --output-format json`), with your Claude subscription | When no key is set | 1 |
+
+**The `claude-code` backend is an approximation of the production API path.** It sends the
+same system prompt, the same `<crm_record>` message (built by the same function) and the same
+JSON schema (`anthropic.transform_schema(LeadScore)`, what the SDK sends), and validates the
+answer with the same Pydantic model. But the request goes through Claude Code, not straight
+to the Messages API:
+
+- Claude Code adds its own request framing around the prompt;
+- it returns the structured answer through its own tool call, not the API's output format;
+- the production refusal fallback (`fallbacks: "default"`) is not used;
+- token counts include Claude Code's cached overhead, and the cost in the report is the API
+  list-price equivalent: the calls themselves are covered by the subscription.
+
+Scores from `claude-code` are a good signal for comparing prompts and datasets, but quote
+results from the `api` backend when you talk about production quality.
+
+The CLI runs with no tools, no saved session and none of your customizations (`--tools ""`,
+`--no-session-persistence`, `--safe-mode`). It runs one case at a time and prints each call as
+it finishes, and defaults to one run per case to stay within the subscription's usage limits.
+
 ## How to run it
 
 ```bash
-export ANTHROPIC_API_KEY=...                  # never commit it
+# With a Claude subscription and Claude Code installed and logged in (no API key needed)
+make eval                                      # 38 calls, one per case
+make eval ARGS="--limit 5"                     # a quick check
+make eval ARGS="--runs 3"                      # spread across runs, uses more of your quota
+
+# With an API key (billed)
+export ANTHROPIC_API_KEY=...                   # never commit it
 make eval                                      # 38 cases x 3 runs = 114 calls
-make eval ARGS="--runs 1 --limit 5"            # a quick, cheap check
+make eval ARGS="--backend claude-code"         # force the CLI even with a key
 ```
 
-The model and effort come from `LLM_MODEL` and `LLM_EFFORT`, as in the app. Every call is
-billed; the report shows the measured cost of the run. Without a key the command stops with a
-message and calls nothing. The eval never runs in CI; CI only runs the tests of its code
-(`tests/test_evals.py`), which use a fake copilot.
+Without `make`: `python -m evals.run --backend claude-code --runs 1`.
+
+The model and effort come from `LLM_MODEL` and `LLM_EFFORT`, as in the app. If neither a key
+nor the `claude` command is available, the run stops with a message and calls nothing. The
+eval never runs in CI; CI only runs the tests of its code (`tests/test_evals.py`), which use a
+fake copilot and a fake CLI.
 
 ## Reading the report
 
-The report is written to `evals/results/YYYY-MM-DD.md`.
+The report is written to `evals/results/YYYY-MM-DD.md`. Its first line names the backend
+(and the Claude Code version for `claude-code`); keep that in mind before comparing two reports.
 
 1. **Summary table.** Compare Claude with the offline rules. The rules are deterministic, so
    their spread is 0 and they ignore injections by construction: they are the floor, not a
@@ -68,7 +105,8 @@ The report is written to `evals/results/YYYY-MM-DD.md`.
 3. **Spread.** A case whose score moves a lot between runs sits on a boundary or has an
    ambiguous record. A high mean spread makes single scores in the app less trustworthy.
 
-To compare a prompt or model change, run the eval before and after with the same `--runs`.
+To compare a prompt or model change, run the eval before and after with the same backend
+and the same `--runs`.
 
 ## Known limits
 
@@ -79,5 +117,7 @@ To compare a prompt or model change, run the eval before and after with the same
 - **Only lead scoring.** Insights and follow-up drafts are free text and are not evaluated yet.
 - **Injection set is not exhaustive.** Passing 8 known attacks does not prove the copilot is
   safe against every attack; it shows the main defences hold.
+- **`claude-code` is not the production path.** See the backends section above; one run per
+  case also hides the spread across runs.
 - **Prices are a constant.** `PRICE_PER_MTOK` in `evals/metrics.py` holds the list price of
   `claude-opus-5-5`; update it if you change the model.
