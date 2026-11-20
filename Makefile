@@ -1,4 +1,4 @@
-.PHONY: install run test lint format check docker
+.PHONY: install run test lint format check docker eval
 
 install:  ## Install the app and the dev tools in the active virtualenv
 	pip install -e ".[dev]"
@@ -13,13 +13,16 @@ test:  ## Run the test suite
 lint:  ## Lint, check formatting and types
 	ruff check .
 	ruff format --check .
-	mypy app
+	mypy app evals
 
 format:  ## Fix lint issues and format the code
 	ruff check --fix .
 	ruff format .
 
 check: lint test  ## Everything CI runs, except the container build
+
+eval:  ## Score the eval datasets with the real Claude API (billed; needs ANTHROPIC_API_KEY)
+	python -m evals.run $(ARGS)
 
 docker:  ## Build the image and run it in demo mode on http://localhost:8080
 	docker build -t leadpilot .
