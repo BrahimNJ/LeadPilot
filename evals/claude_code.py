@@ -69,8 +69,10 @@ class ClaudeCodeCopilot:
         ]
 
     def version(self) -> str:
+        # `claude --version` prints "2.1.327 (Claude Code)": keep the number only.
         done = self._call([self._executable, "--version"], stdin="")
-        return done.stdout.strip() or "unknown version"
+        words = done.stdout.split()
+        return words[0] if words else "unknown version"
 
     def score_lead(self, ctx: ContactContext) -> ScoreResult:
         done = self._call(self.command(), stdin=build_prompt(SCORING_TASK, ctx))
