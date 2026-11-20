@@ -106,7 +106,8 @@ attacks, three times each, next to the offline rules as a baseline, and writes a
 with accuracy, stability, injection resistance, latency and cost.
 
 ```bash
-ANTHROPIC_API_KEY=... make eval
+make eval                          # Claude Code CLI with a Claude subscription, no key needed
+ANTHROPIC_API_KEY=... make eval    # the Messages API, as in production (billed)
 ```
 
 See [docs/evaluation.md](docs/evaluation.md) for the metrics, the datasets and the limits.
