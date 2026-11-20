@@ -1,0 +1,332 @@
+# Lead scoring eval: 30 synthetic B2B contacts. Names and companies are invented, emails use
+# example.com, and no case describes a real person.
+#
+# Labelling rubric (the same scale the scoring prompt gives the model):
+#
+#   hot  (70-100)  An open deal at qualified stage or later that is moving, AND a two-way
+#                  contact in the last 14 days, AND a concrete buying signal (budget approved,
+#                  contract or pricing discussed, start date asked for).
+#   warm (40-69)   Real interest with something missing: an early deal, engagement without a
+#                  deal, an advanced deal gone quiet for 15 to 45 days, a blocker (budget
+#                  freeze, champion left, competitor), or no decision maker involved yet.
+#   cold (0-39)    No open deal and little or old engagement; a lost deal with no new interest;
+#                  outreach that never got an answer; not a buyer at all; or any deal with no
+#                  two-way contact for more than 60 days (a deal that silent counts as stalled,
+#                  whatever its stage or size).
+#
+# The temperature is the label to match. The band is the range of scores accepted for the
+# case: usually the whole temperature range, narrower for clear-cut cases, and a little wider
+# across a boundary for tricky ones.
+#
+# Each case: id, description, contact (email is never sent to the model), optional company,
+# deals (stage, amount in euros, optional close_in_days) and activities (days_ago: 0 = today).
+
+cases:
+  # ------------------------------------------------------------------ hot
+  - id: hot-01
+    description: Contract in legal review, called two days ago
+    contact: {first_name: Clara, last_name: Voss, email: clara.voss@example.com, role: COO}
+    company: {name: Arden Freight, industry: Logistics, size: 201-1000}
+    deals:
+      - {title: Fleet planning rollout, amount: 45000, stage: negotiation, close_in_days: 20}
+    activities:
+      - {kind: call, subject: Contract questions, body: "Two clauses left on liability.", days_ago: 2}
+      - {kind: meeting, subject: Legal review kickoff, body: "Their lawyer has the draft.", days_ago: 9}
+      - {kind: email, subject: Pricing confirmed, body: "Agreed on the 3-year price.", days_ago: 12}
+    expected: {temperature: hot, band: [80, 100]}
+
+  - id: hot-02
+    description: Proposal out, asked for a January start date yesterday
+    contact: {first_name: Malik, last_name: Ferrand, email: malik.ferrand@example.com, role: Head of Sales}
+    company: {name: Brisa Software, industry: SaaS, size: 51-200}
+    deals:
+      - {title: Sales team licences, amount: 22000, stage: proposal}
+    activities:
+      - {kind: email, subject: Start date, body: "Can we start on January 6? I want the team trained before Q1.", days_ago: 1}
+      - {kind: meeting, subject: Demo to the sales team, body: "Very good feedback from the reps.", days_ago: 6}
+    expected: {temperature: hot, band: [70, 100]}
+
+  - id: hot-03
+    description: Enterprise deal, procurement meeting this week, redlines returned
+    contact: {first_name: Helena, last_name: Strand, email: helena.strand@example.com, role: VP Operations}
+    company: {name: Nordvik Energy, industry: Energy, size: 1000+}
+    deals:
+      - {title: Group-wide CRM, amount: 120000, stage: negotiation, close_in_days: 30}
+    activities:
+      - {kind: email, subject: Redlines, body: "Procurement sent back the contract with small edits.", days_ago: 1}
+      - {kind: meeting, subject: Procurement meeting, body: "Budget signed off by the CFO.", days_ago: 4}
+      - {kind: call, subject: Security review passed, days_ago: 11}
+    expected: {temperature: hot, band: [80, 100]}
+
+  - id: hot-04
+    description: Qualified deal only, but budget approved and pricing requested
+    contact: {first_name: Theo, last_name: Marchetti, email: theo.marchetti@example.com, role: CTO}
+    company: {name: Lumen Retail, industry: Retail, size: 201-1000}
+    deals:
+      - {title: Store analytics, amount: 15000, stage: qualified}
+    activities:
+      - {kind: email, subject: Pricing and security docs, body: "Please send pricing and your security pack, we want to decide this month.", days_ago: 3}
+      - {kind: meeting, subject: Needs review, body: "Budget approved for this quarter.", days_ago: 5}
+    expected: {temperature: hot, band: [70, 95]}
+
+  - id: hot-05
+    description: Small deal, verbal yes today, waiting for the purchase order
+    contact: {first_name: Ana, last_name: Ruiz, email: ana.ruiz@example.com, role: Office Manager}
+    company: {name: Ruiz & Co Architects, industry: Architecture, size: 11-50}
+    deals:
+      - {title: Starter plan, amount: 9000, stage: proposal}
+    activities:
+      - {kind: call, subject: Verbal yes, body: "She is raising the purchase order this week.", days_ago: 0}
+      - {kind: email, subject: Proposal sent, days_ago: 7}
+    expected: {temperature: hot, band: [75, 100]}
+
+  - id: hot-06
+    description: Lost a deal last year, new CFO restarted the project this week
+    contact: {first_name: Jonas, last_name: Berg, email: jonas.berg@example.com, role: CFO}
+    company: {name: Kestrel Manufacturing, industry: Manufacturing, size: 201-1000}
+    deals:
+      - {title: First attempt, amount: 25000, stage: lost}
+      - {title: Restart with the new finance team, amount: 30000, stage: proposal}
+    activities:
+      - {kind: email, subject: Revised proposal, body: "Thanks, we will review it with the board on Monday.", days_ago: 1}
+      - {kind: meeting, subject: Restart meeting, body: "New CFO wants to replace their current tool before year end.", days_ago: 3}
+      - {kind: note, subject: Lost to price last year, days_ago: 240}
+    expected: {temperature: hot, band: [70, 95]}
+
+  - id: hot-07
+    description: Final pricing discussed ten days ago, follow-up call last week
+    contact: {first_name: Sofia, last_name: Lindqvist, email: sofia.lindqvist@example.com, role: Director of Customer Success}
+    company: {name: Pinecrest Health, industry: Healthcare, size: 51-200}
+    deals:
+      - {title: Support team seats, amount: 18000, stage: negotiation}
+    activities:
+      - {kind: call, subject: Follow-up on pricing, body: "Waiting for the final approval of her director, expected positive.", days_ago: 6}
+      - {kind: meeting, subject: Final pricing, days_ago: 10}
+    expected: {temperature: hot, band: [70, 95]}
+
+  - id: hot-08
+    description: Several stakeholders engaged in the last two weeks
+    contact: {first_name: Daniel, last_name: Okafor, email: daniel.okafor@example.com, role: Head of Revenue Operations}
+    company: {name: Quayside Media, industry: Media, size: 201-1000}
+    deals:
+      - {title: Revenue team platform, amount: 60000, stage: proposal}
+    activities:
+      - {kind: meeting, subject: IT architecture review, days_ago: 2}
+      - {kind: email, subject: Questions from finance, body: "Finance asked for payment terms.", days_ago: 4}
+      - {kind: call, subject: Champion check-in, body: "Daniel says the decision is next week.", days_ago: 6}
+      - {kind: meeting, subject: Demo to the sales leaders, days_ago: 9}
+      - {kind: email, subject: Proposal sent, days_ago: 12}
+    expected: {temperature: hot, band: [75, 100]}
+
+  - id: hot-09
+    description: Order form announced for Friday, close date next week
+    contact: {first_name: Lea, last_name: Garnier, email: lea.garnier@example.com, role: CEO}
+    company: {name: Garnier Events, industry: Events, size: 11-50}
+    deals:
+      - {title: Annual plan, amount: 12000, stage: negotiation, close_in_days: 7}
+    activities:
+      - {kind: email, subject: Order form, body: "The signed order form will follow on Friday.", days_ago: 2}
+      - {kind: call, subject: Last questions, days_ago: 8}
+    expected: {temperature: hot, band: [85, 100]}
+
+  - id: hot-10
+    description: One decisive meeting yesterday, terms agreed
+    contact: {first_name: Ravi, last_name: Menon, email: ravi.menon@example.com, role: Managing Director}
+    company: {name: Menon Logistics, industry: Logistics, size: 51-200}
+    deals:
+      - {title: Dispatch module, amount: 28000, stage: negotiation}
+    activities:
+      - {kind: meeting, subject: Terms agreed, body: "Agreed on terms, contract to sign next week.", days_ago: 1}
+    expected: {temperature: hot, band: [75, 100]}
+
+  # ------------------------------------------------------------------ warm
+  - id: warm-01
+    description: Qualified after a discovery call, no budget confirmed yet
+    contact: {first_name: Hugo, last_name: Perrin, email: hugo.perrin@example.com, role: Sales Manager}
+    company: {name: Altis Insurance, industry: Insurance, size: 201-1000}
+    deals:
+      - {title: Broker team pilot, amount: 12000, stage: qualified}
+    activities:
+      - {kind: call, subject: Discovery call, body: "Interested, budget not discussed yet.", days_ago: 8}
+    expected: {temperature: warm, band: [40, 69]}
+
+  - id: warm-02
+    description: Many engaged emails over the last month but no deal
+    contact: {first_name: Nadia, last_name: Haddou, email: nadia.haddou@example.com, role: Marketing Lead}
+    company: {name: Oakline Foods, industry: Food, size: 51-200}
+    activities:
+      - {kind: email, subject: Question about integrations, body: "Do you connect to HubSpot?", days_ago: 3}
+      - {kind: email, subject: Question about pricing tiers, days_ago: 8}
+      - {kind: email, subject: Replied to the webinar invite, days_ago: 13}
+      - {kind: email, subject: Asked for a case study, days_ago: 18}
+      - {kind: email, subject: Question about data export, days_ago: 24}
+      - {kind: email, subject: Thanks for the guide, days_ago: 29}
+    expected: {temperature: warm, band: [40, 65]}
+
+  - id: warm-03
+    description: Proposal sent a month ago, no feedback since
+    contact: {first_name: Victor, last_name: Lambert, email: victor.lambert@example.com, role: Operations Director}
+    company: {name: Lambert Transports, industry: Logistics, size: 51-200}
+    deals:
+      - {title: Fleet tracking, amount: 25000, stage: proposal}
+    activities:
+      - {kind: email, subject: Proposal sent, body: "Waiting for his feedback.", days_ago: 30}
+      - {kind: meeting, subject: Demo, days_ago: 38}
+    expected: {temperature: warm, band: [40, 65]}
+
+  - id: warm-04
+    description: Interested, but the project is for next year
+    contact: {first_name: Ines, last_name: Carvalho, email: ines.carvalho@example.com, role: Head of Customer Service}
+    company: {name: Brightpath Telecom, industry: Telecom, size: 1000+}
+    deals:
+      - {title: Service desk upgrade, amount: 5000, stage: lead}
+    activities:
+      - {kind: call, subject: First call, body: "Interested but their budget opens next year.", days_ago: 5}
+    expected: {temperature: warm, band: [40, 60]}
+
+  - id: warm-05
+    description: Advanced deal hit a budget freeze forty days ago
+    contact: {first_name: Pieter, last_name: de Wit, email: pieter.dewit@example.com, role: Finance Director}
+    company: {name: Delta Hydraulics, industry: Manufacturing, size: 201-1000}
+    deals:
+      - {title: Finance team rollout, amount: 35000, stage: negotiation}
+    activities:
+      - {kind: call, subject: Budget freeze, body: "All purchases frozen until Q2, he still wants it.", days_ago: 40}
+    expected: {temperature: warm, band: [35, 65]}
+
+  - id: warm-06
+    description: Proposal stage, but the champion just left the company
+    contact: {first_name: Lucas, last_name: Moreau, email: lucas.moreau@example.com, role: Sales Operations}
+    company: {name: Vela Pharma, industry: Pharma, size: 1000+}
+    deals:
+      - {title: Field sales CRM, amount: 40000, stage: proposal}
+    activities:
+      - {kind: note, subject: Champion left, body: "Our champion left the company, nobody named to replace her yet.", days_ago: 10}
+      - {kind: meeting, subject: Proposal walkthrough, days_ago: 25}
+    expected: {temperature: warm, band: [35, 65]}
+
+  - id: warm-07
+    description: Good intro call with someone who is not the decision maker
+    contact: {first_name: Emma, last_name: Schulz, email: emma.schulz@example.com, role: Operations Analyst}
+    company: {name: Hafen Logistik, industry: Logistics, size: 201-1000}
+    activities:
+      - {kind: meeting, subject: Intro call, body: "Likes the product, needs to convince her boss first.", days_ago: 7}
+    expected: {temperature: warm, band: [40, 60]}
+
+  - id: warm-08
+    description: Qualified deal with a competitor in the evaluation
+    contact: {first_name: Omar, last_name: Benali, email: omar.benali@example.com, role: IT Manager}
+    company: {name: Atlas Distribution, industry: Distribution, size: 201-1000}
+    deals:
+      - {title: Distributor portal, amount: 18000, stage: qualified}
+    activities:
+      - {kind: meeting, subject: Requirements workshop, body: "Also evaluating a competitor, decision in two months.", days_ago: 12}
+    expected: {temperature: warm, band: [40, 69]}
+
+  - id: warm-09
+    description: Inbound demo request two days ago, no deal yet
+    contact: {first_name: Grace, last_name: Whitfield, email: grace.whitfield@example.com, role: VP Sales}
+    company: {name: Harbor Bank, industry: Banking, size: 1000+}
+    activities:
+      - {kind: email, subject: Demo request, body: "We are reviewing CRM options for our SME team, can we see a demo?", days_ago: 2}
+    expected: {temperature: warm, band: [40, 69]}
+
+  - id: warm-10
+    description: Very large deal still at lead stage, one email three weeks ago
+    contact: {first_name: Marcus, last_name: Hale, email: marcus.hale@example.com, role: Procurement Officer}
+    company: {name: Continental Rail, industry: Transport, size: 1000+}
+    deals:
+      - {title: National rollout, amount: 200000, stage: lead}
+    activities:
+      - {kind: email, subject: RFI received, body: "Sent their request for information, answered it.", days_ago: 20}
+    expected: {temperature: warm, band: [35, 60]}
+
+  # ------------------------------------------------------------------ cold
+  - id: cold-01
+    description: New contact, nothing logged
+    contact: {first_name: Paul, last_name: Girard, email: paul.girard@example.com}
+    expected: {temperature: cold, band: [0, 25]}
+
+  - id: cold-02
+    description: Large deal in negotiation, but no contact for 90 days
+    contact: {first_name: Sven, last_name: Aalto, email: sven.aalto@example.com, role: CIO}
+    company: {name: Boreal Paper, industry: Manufacturing, size: 1000+}
+    deals:
+      - {title: Group CRM, amount: 150000, stage: negotiation}
+    activities:
+      - {kind: meeting, subject: Negotiation round, body: "Asked for a discount, we sent a new offer.", days_ago: 90}
+    expected: {temperature: cold, band: [10, 45]}
+
+  - id: cold-03
+    description: Lost to a competitor two months ago, nothing since
+    contact: {first_name: Laura, last_name: Bianchi, email: laura.bianchi@example.com, role: Head of Sales}
+    company: {name: Ferro Tools, industry: Manufacturing, size: 51-200}
+    deals:
+      - {title: Sales team plan, amount: 14000, stage: lost}
+    activities:
+      - {kind: email, subject: Decision, body: "They chose a competitor.", days_ago: 60}
+    expected: {temperature: cold, band: [0, 30]}
+
+  - id: cold-04
+    description: Said not interested four months ago
+    contact: {first_name: Kevin, last_name: Doyle, email: kevin.doyle@example.com, role: Owner}
+    company: {name: Doyle Plumbing, industry: Construction, size: 1-10}
+    activities:
+      - {kind: email, subject: Reply, body: "Not interested, please remove me from your list.", days_ago: 120}
+    expected: {temperature: cold, band: [0, 20]}
+
+  - id: cold-05
+    description: One intro call 75 days ago, no deal
+    contact: {first_name: Mei, last_name: Tanaka, email: mei.tanaka@example.com, role: Product Manager}
+    company: {name: Sakura Games, industry: Gaming, size: 51-200}
+    activities:
+      - {kind: call, subject: Intro call, body: "Curious, no project planned.", days_ago: 75}
+    expected: {temperature: cold, band: [0, 35]}
+
+  - id: cold-06
+    description: Customer since last year, no contact since the deal was won
+    contact: {first_name: Julien, last_name: Roche, email: julien.roche@example.com, role: CEO}
+    company: {name: Roche Conseil, industry: Consulting, size: 11-50}
+    deals:
+      - {title: First licence, amount: 6000, stage: won}
+    activities:
+      - {kind: note, subject: Contract signed, days_ago: 200}
+    expected: {temperature: cold, band: [10, 45]}
+
+  - id: cold-07
+    description: Two emails bounced, never reached
+    contact: {first_name: Tom, last_name: Archer, email: tom.archer@example.com}
+    company: {name: Archer Supplies, industry: Distribution, size: 11-50}
+    activities:
+      - {kind: email, subject: Bounced, body: "Mailbox not found.", days_ago: 50}
+      - {kind: email, subject: Bounced, body: "Mailbox not found.", days_ago: 55}
+    expected: {temperature: cold, band: [0, 25]}
+
+  - id: cold-08
+    description: Small lead deal, said he would come back 70 days ago
+    contact: {first_name: Diego, last_name: Alvarez, email: diego.alvarez@example.com, role: Store Manager}
+    company: {name: Alvarez Bikes, industry: Retail, size: 1-10}
+    deals:
+      - {title: Shop plan, amount: 3000, stage: lead}
+    activities:
+      - {kind: call, subject: Call, body: "Will come back to us.", days_ago: 70}
+    expected: {temperature: cold, band: [5, 35]}
+
+  - id: cold-09
+    description: Five follow-ups in a month, none answered
+    contact: {first_name: Rachel, last_name: Kim, email: rachel.kim@example.com, role: Sales Director}
+    company: {name: Summit Software, industry: SaaS, size: 201-1000}
+    activities:
+      - {kind: email, subject: Follow-up 5, body: "No reply.", days_ago: 2}
+      - {kind: email, subject: Follow-up 4, body: "No reply.", days_ago: 8}
+      - {kind: email, subject: Follow-up 3, body: "No reply.", days_ago: 15}
+      - {kind: email, subject: Follow-up 2, body: "No reply.", days_ago: 22}
+      - {kind: email, subject: First outreach, body: "No reply.", days_ago: 29}
+    expected: {temperature: cold, band: [0, 35]}
+
+  - id: cold-10
+    description: A student asking for a free licence for a school project
+    contact: {first_name: Lina, last_name: Moussa, email: lina.moussa@example.com, role: Student}
+    activities:
+      - {kind: email, subject: Free licence, body: "Could I get a free licence for my school project?", days_ago: 5}
+    expected: {temperature: cold, band: [0, 30]}
