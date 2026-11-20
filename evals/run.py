@@ -1,8 +1,13 @@
 """Score every eval case with Claude and with the offline rules, then write a report.
 
-    python -m evals.run [--runs 3] [--limit N]     (or: make eval ARGS="--runs 1")
+    python -m evals.run [--backend api|claude-code] [--runs N] [--limit N]
+    make eval ARGS="--runs 1 --limit 5"
 
-This calls the real Claude API: it needs ANTHROPIC_API_KEY and every call is billed.
+Two ways to reach Claude:
+- api: the Messages API with ANTHROPIC_API_KEY, the production path. Billed per token.
+- claude-code: the Claude Code CLI in headless mode, with your Claude subscription. The
+  default when no API key is set; an approximation of the production path.
+
 It never runs in CI. See docs/evaluation.md.
 """
 
@@ -30,6 +35,21 @@ from evals.metrics import (
 )
 
 RESULTS = Path(__file__).parent / "results"
+
+# One run per case with Claude Code, to stay within the usage limits of a subscription.
+DEFAULT_RUNS = {"api": 3, "claude-code": 1}
+BACKEND_NOTES = {
+    "api": "Messages API through the Anthropic SDK: the same path as production.",
+    "claude-code": (
+        "Claude Code CLI in headless mode (`claude -p`). **This is an approximation of the "
+        "production API path.** The system prompt, the `<crm_record>` message and the JSON "
+        "schema are the same, but the request goes through Claude Code: it adds its own "
+        "request framing, returns the structured answer through its own tool call instead of "
+        "the API's output format, and does not use the production refusal fallback. Token "
+        "counts include Claude Code's cached overhead, and the cost shown is the API "
+        "list-price equivalent: the calls are covered by the Claude subscription."
+    ),
+}
 
 
 class Scorer(Protocol):
@@ -78,9 +98,11 @@ def run_eval(
     results: list[Run] = []
     for i, case in enumerate(cases, start=1):
         results.append(score_once(rules, "rules", case, now))
-        for _ in range(runs):
-            results.append(score_once(claude, "claude", case, now))
-        progress(f"[{i}/{len(cases)}] {case.id}")
+        for k in range(1, runs + 1):
+            run = score_once(claude, "claude", case, now)
+            results.append(run)
+            got = f"{run.score} {run.temperature}" if run.valid else f"invalid: {run.error}"
+            progress(f"[{i}/{len(cases)}] {case.id} run {k}/{runs}: {got} ({run.latency_s:.1f}s)")
     return results
 
 
@@ -141,6 +163,8 @@ def render_report(
     effort: str,
     runs_per_case: int,
     day: date,
+    backend: str = "api",
+    backend_label: str | None = None,
 ) -> str:
     by_id = {c.id: c for c in [*scoring, *injection]}
     scoring_ids = {c.id for c in scoring}
@@ -158,6 +182,7 @@ def render_report(
     lines = [
         f"# Copilot eval: {day:%Y-%m-%d}",
         "",
+        f"- Backend: `{backend_label or backend}`. {BACKEND_NOTES[backend]}",
         f"- Model: `{model}`, effort `{effort}`, {runs_per_case} run(s) per case",
         f"- Lead scoring: {len(scoring)} cases; prompt injection: {len(injection)} cases",
         f"- Prices: ${PRICE_PER_MTOK['input']:.2f} / ${PRICE_PER_MTOK['output']:.2f} "
@@ -182,7 +207,8 @@ def render_report(
         f"{claude_all.latency_p95:.1f} s | - |",
         f"| Tokens per call (input / output) | {claude_all.mean_input_tokens:.0f} / "
         f"{claude_all.mean_output_tokens:.0f} | - |",
-        f"| Cost per call / whole run | ${claude_all.mean_cost:.4f} / "
+        f"| Cost per call / whole run{' (API price equivalent)' if backend != 'api' else ''} "
+        f"| ${claude_all.mean_cost:.4f} / "
         f"${claude_all.total_cost:.2f} | - |",
         "",
         "## Failed lead scoring cases (Claude)",
@@ -209,37 +235,69 @@ def render_report(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Evaluate the Claude lead scoring copilot.")
-    parser.add_argument("--runs", type=int, default=3, help="Claude calls per case (default 3)")
+    parser.add_argument(
+        "--backend",
+        choices=sorted(DEFAULT_RUNS),
+        help="api (needs ANTHROPIC_API_KEY, the default when it is set) or claude-code "
+        "(the Claude Code CLI, the default otherwise)",
+    )
+    parser.add_argument(
+        "--runs", type=int, help="Claude calls per case (default: 3 with api, 1 with claude-code)"
+    )
     parser.add_argument("--limit", type=int, help="only the first N cases of each dataset")
     args = parser.parse_args(argv)
-    if args.runs < 1:
+    if args.runs is not None and args.runs < 1:
         parser.error("--runs must be at least 1")
 
     from app.config import get_settings
 
     settings = get_settings()
-    if not settings.anthropic_api_key:
-        print(
-            "ANTHROPIC_API_KEY is not set. The eval calls the real Claude API (billed): "
-            "export your key, then run `make eval` again.",
-            file=sys.stderr,
-        )
-        return 2
+    backend = args.backend or ("api" if settings.anthropic_api_key else "claude-code")
+    runs_per_case = args.runs or DEFAULT_RUNS[backend]
+    copilot: Scorer
 
-    # Imported here so the tests and a keyless shell never load the SDK.
-    import anthropic
+    if backend == "api":
+        if not settings.anthropic_api_key:
+            print(
+                "ANTHROPIC_API_KEY is not set. The api backend calls the Claude API (billed): "
+                "export your key, or use --backend claude-code with a Claude subscription.",
+                file=sys.stderr,
+            )
+            return 2
+        # Imported here so the tests and a keyless shell never load the SDK.
+        import anthropic
 
-    from app.ai.claude import ClaudeCopilot
+        from app.ai.claude import ClaudeCopilot
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    copilot = ClaudeCopilot(client, model=settings.llm_model, effort=settings.llm_effort)
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        copilot = ClaudeCopilot(client, model=settings.llm_model, effort=settings.llm_effort)
+        backend_label = "api"
+    else:
+        from evals.claude_code import ClaudeCodeCopilot, find_cli
+
+        executable = find_cli()
+        if executable is None:
+            print(
+                "The Claude Code CLI (`claude`) is not on your PATH. Install it and log in, "
+                "or set ANTHROPIC_API_KEY to use the api backend.",
+                file=sys.stderr,
+            )
+            return 2
+        cli = ClaudeCodeCopilot(executable, model=settings.llm_model, effort=settings.llm_effort)
+        try:
+            backend_label = f"claude-code, Claude Code {cli.version()}"
+        except CopilotError as exc:
+            print(f"Could not run the Claude Code CLI: {exc}", file=sys.stderr)
+            return 2
+        copilot = cli
 
     scoring = load_cases("lead_scoring")[: args.limit]
     injection = load_cases("prompt_injection")[: args.limit]
-    calls = (len(scoring) + len(injection)) * args.runs
-    print(f"Running {calls} Claude calls on {settings.llm_model}...")
+    calls = (len(scoring) + len(injection)) * runs_per_case
+    print(f"Backend: {backend_label}")
+    print(f"Running {calls} calls on {settings.llm_model} ({runs_per_case} per case)...")
 
-    runs = run_eval([*scoring, *injection], copilot, args.runs, progress=print)
+    runs = run_eval([*scoring, *injection], copilot, runs_per_case, progress=print)
     today = date.today()
     report = render_report(
         scoring,
@@ -247,8 +305,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         runs,
         model=settings.llm_model,
         effort=settings.llm_effort,
-        runs_per_case=args.runs,
+        runs_per_case=runs_per_case,
         day=today,
+        backend=backend,
+        backend_label=backend_label,
     )
     RESULTS.mkdir(exist_ok=True)
     path = RESULTS / f"{today:%Y-%m-%d}.md"

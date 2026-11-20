@@ -174,7 +174,7 @@ def test_main_stops_with_a_clear_message_without_an_api_key(monkeypatch, capsys)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     get_settings.cache_clear()
     try:
-        code = main(["--limit", "1"])
+        code = main(["--backend", "api", "--limit", "1"])
     finally:
         get_settings.cache_clear()
 
