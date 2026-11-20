@@ -1,15 +1,21 @@
 """The eval tooling, tested without the network. The eval itself never runs in CI."""
 
 import json
+import subprocess
 from collections import Counter
 from datetime import UTC, date, datetime
 
 import httpx2
 import pytest
+from anthropic import transform_schema
 
+from app.ai.claude import SCORING_TASK, SYSTEM_PROMPT
 from app.ai.context import render
+from app.ai.copilot import CopilotRefused, CopilotUnavailable
 from app.ai.schemas import LeadScore, ScoreResult
 from app.config import get_settings
+from evals import claude_code
+from evals.claude_code import ClaudeCodeCopilot
 from evals.dataset import DatasetError, build_context, load_cases
 from evals.metrics import (
     Run,
@@ -180,3 +186,126 @@ def test_main_stops_with_a_clear_message_without_an_api_key(monkeypatch, capsys)
 
     assert code == 2
     assert "ANTHROPIC_API_KEY is not set" in capsys.readouterr().err
+
+
+# --- claude-code backend ----------------------------------------------------------------
+
+
+def cli_output(structured, **overrides):
+    """The shape `claude -p --output-format json --json-schema ...` prints."""
+    data = {
+        "type": "result",
+        "subtype": "success",
+        "is_error": False,
+        "stop_reason": "tool_use",
+        "result": json.dumps(structured),
+        "structured_output": structured,
+        "usage": {
+            "input_tokens": 2,
+            "cache_creation_input_tokens": 1500,
+            "cache_read_input_tokens": 300,
+            "output_tokens": 90,
+        },
+    }
+    return json.dumps(data | overrides)
+
+
+class FakeCli:
+    def __init__(self, stdout="", returncode=0, error=None):
+        self.stdout, self.returncode, self.error = stdout, returncode, error
+        self.calls = []
+
+    def __call__(self, args, **kwargs):
+        self.calls.append((args, kwargs))
+        if self.error:
+            raise self.error
+        return subprocess.CompletedProcess(args, self.returncode, self.stdout, "boom")
+
+
+def cli_copilot(fake):
+    return ClaudeCodeCopilot("claude", model="claude-opus-5-5", effort="medium", run=fake)
+
+
+def test_claude_code_sends_what_production_sends():
+    answer = {"score": 82, "temperature": "hot", "reasons": ["Contract in review"], "risks": []}
+    fake = FakeCli(cli_output(answer))
+    case = load_cases("lead_scoring")[0]
+
+    result = cli_copilot(fake).score_lead(build_context(case, NOW))
+
+    args, kwargs = fake.calls[0]
+    option = {args[i]: args[i + 1] for i in range(1, len(args) - 1) if args[i].startswith("--")}
+    assert result.lead == LeadScore(**answer)
+    assert option["--system-prompt"] == SYSTEM_PROMPT
+    assert json.loads(option["--json-schema"]) == transform_schema(LeadScore)
+    assert option["--output-format"] == "json"
+    assert option["--tools"] == ""
+    assert (option["--model"], option["--effort"]) == ("claude-opus-5-5", "medium")
+    assert kwargs["input"].startswith("<crm_record>")
+    assert SCORING_TASK in kwargs["input"]
+    assert case.record["contact"]["email"] not in kwargs["input"]
+
+
+def test_claude_code_usage_counts_cached_input():
+    answer = {"score": 30, "temperature": "cold", "reasons": [], "risks": []}
+    copilot = cli_copilot(FakeCli(cli_output(answer)))
+
+    copilot.score_lead(build_context(load_cases("lead_scoring")[20], NOW))
+
+    assert copilot.last_usage == (1802, 90)
+
+
+@pytest.mark.parametrize(
+    ("fake", "error"),
+    [
+        (FakeCli(cli_output({"score": "high"})), "did not match the schema"),
+        (FakeCli(cli_output({}, is_error=True, subtype="error_max_turns")), "reported an error"),
+        (FakeCli("not json", returncode=1), "exited with 1"),
+        (FakeCli(error=FileNotFoundError()), "not found"),
+        (FakeCli(error=subprocess.TimeoutExpired("claude", 300)), "did not answer"),
+    ],
+)
+def test_claude_code_failures_become_unavailable(fake, error):
+    with pytest.raises(CopilotUnavailable, match=error):
+        cli_copilot(fake).score_lead(build_context(load_cases("lead_scoring")[0], NOW))
+
+
+def test_claude_code_refusal_is_reported_as_refused():
+    fake = FakeCli(cli_output(None, stop_reason="refusal"))
+
+    with pytest.raises(CopilotRefused):
+        cli_copilot(fake).score_lead(build_context(load_cases("lead_scoring")[0], NOW))
+
+
+def test_without_a_key_the_default_backend_is_claude_code(monkeypatch, capsys):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(claude_code, "find_cli", lambda: None)
+    get_settings.cache_clear()
+    try:
+        code = main(["--limit", "1"])
+    finally:
+        get_settings.cache_clear()
+
+    assert code == 2
+    assert "Claude Code CLI (`claude`) is not on your PATH" in capsys.readouterr().err
+
+
+def test_report_says_the_claude_code_backend_is_an_approximation():
+    scoring = load_cases("lead_scoring")[:1]
+    runs = run_eval(scoring, ScriptedCopilot([90]), runs=1)
+
+    report = render_report(
+        scoring,
+        [],
+        runs,
+        model="claude-opus-5-5",
+        effort="medium",
+        runs_per_case=1,
+        day=date(2026, 11, 20),
+        backend="claude-code",
+        backend_label="claude-code, Claude Code 2.1.327",
+    )
+
+    assert "Backend: `claude-code, Claude Code 2.1.327`" in report
+    assert "approximation of the production API path" in report
+    assert "(API price equivalent)" in report
