@@ -6,6 +6,12 @@ All notable changes to LeadPilot. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- CRM text is escaped before it is placed in the copilot prompt, so a note can no longer
+  close the record with a fake tag and inject a "system" rule. Found by the prompt
+  injection eval (`inject-02`)
+
 ### Added
 
 - An evaluation suite for the lead scoring copilot (`make eval`): 30 labelled synthetic
