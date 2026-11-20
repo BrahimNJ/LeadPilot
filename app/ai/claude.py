@@ -47,6 +47,11 @@ Do not invent prices, dates or commitments that are not in the record.
 LANGUAGE_NAMES = {"fr": "French", "en": "English"}
 
 
+def build_prompt(task: str, ctx: ContactContext) -> str:
+    """The user message: the record, marked as data, then the task. Shared with the evals."""
+    return f"<crm_record>\n{render(ctx)}\n</crm_record>\n\n{task}"
+
+
 class ClaudeCopilot:
     def __init__(
         self,
@@ -77,7 +82,7 @@ class ClaudeCopilot:
         return self._ask(task.strip(), ctx, FollowUpDraft)
 
     def _ask[T: BaseModel](self, task: str, ctx: ContactContext, output: type[T]) -> T:
-        prompt = f"<crm_record>\n{render(ctx)}\n</crm_record>\n\n{task}"
+        prompt = build_prompt(task, ctx)
         try:
             response = self._client.beta.messages.parse(
                 model=self._model,
